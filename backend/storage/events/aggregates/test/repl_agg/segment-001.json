@@ -1,0 +1,11 @@
+[
+  {
+    "eventId": "repl_test",
+    "type": "TEST",
+    "payload": {
+      "foo": "bar"
+    },
+    "aggregateId": "repl_agg",
+    "aggregateType": "test"
+  }
+]

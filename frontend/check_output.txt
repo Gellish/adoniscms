@@ -1,0 +1,23 @@
+
+> frontend@0.0.0 check
+> svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json
+
+Loading svelte-check in workspace: d:\singlepageapplication\frontend
+Getting Svelte diagnostics...
+
+d:\singlepageapplication\frontend\[32msrc\pages\AdminEditor.svelte[39m:19:9
+[33mWarn[39m: `editorElement` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+https://svelte.dev/e/non_reactive_update (svelte)
+[36m    let editor: EasyMDE | null = null;
+    let [35meditorElement: HTMLTextAreaElement[36m;[39m
+
+d:\singlepageapplication\frontend\[32msrc\components\AdminLayout.svelte[39m:127:5
+[33mWarn[39m: Unused CSS selector ".view-site"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.view-site[36m {
+        color: #007bff;[39m
+
+====================================
+[33msvelte-check found 0 errors and 2 warnings in 2 files
+[39m

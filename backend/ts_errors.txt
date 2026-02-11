@@ -1,0 +1,1 @@
+commands/import_legacy_posts.ts(53,56): error TS18046: 'error' is of type 'unknown'.
