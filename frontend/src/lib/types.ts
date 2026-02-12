@@ -41,3 +41,17 @@ export interface FieldSchema {
     options?: { label: string; value: any }[];
     meta?: Record<string, any>;
 }
+
+export interface MenuItem {
+    id: string;
+    label: string;
+    url: string;
+    children?: MenuItem[];
+    isOpen?: boolean;
+}
+
+export interface Menu {
+    id: string;
+    name: string;
+    items: MenuItem[];
+}

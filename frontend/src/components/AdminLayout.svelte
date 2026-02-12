@@ -48,6 +48,15 @@
             <button onclick={() => navigateTo("/admin/users")} class="nav-item">
                 <span>Users</span>
             </button>
+            <button onclick={() => navigateTo("/admin/menus")} class="nav-item">
+                <span>Menus</span>
+            </button>
+            <button
+                onclick={() => navigateTo("/admin/database")}
+                class="nav-item"
+            >
+                <span>Database Builder</span>
+            </button>
             <div class="divider"></div>
             <button onclick={() => navigateTo("/")} class="nav-item secondary">
                 <span>Public Site</span>

@@ -98,7 +98,7 @@ export function useAuth() {
                 const localUser = {
                     id: 1,
                     email: 'admin@devcms.com',
-                    fullName: 'Admin User (Offline)',
+                    fullName: 'admin@devcms.com',
                     role: 'admin'
                 };
                 user = localUser;
