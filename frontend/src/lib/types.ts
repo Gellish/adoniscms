@@ -12,6 +12,7 @@ export interface Post {
     id: number | string;
     title: string;
     content: string;
+    description?: string;
     slug: string;
     tags?: string[];
     author?: string; // Added for frontend compatibility
@@ -28,4 +29,15 @@ export interface Event {
     payload: Record<string, unknown>;
     version: number;
     timestamp: string;
+}
+
+export type InterfaceType = 'input' | 'textarea' | 'select' | 'boolean' | 'richtext';
+
+export interface FieldSchema {
+    field: string;
+    label: string;
+    type: InterfaceType;
+    placeholder?: string;
+    options?: { label: string; value: any }[];
+    meta?: Record<string, any>;
 }

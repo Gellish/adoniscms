@@ -1,68 +1,96 @@
 <script lang="ts">
-    import { onMount, onDestroy } from "svelte";
-    import EasyMDE from "easymde";
-    import "easymde/dist/easymde.min.css";
+    import { onMount } from "svelte";
     import { adminState } from "../lib/adminState.svelte";
+    import DynamicForm from "../lib/components/DynamicForm.svelte";
+    import type { FieldSchema, Post } from "../lib/types";
 
-    // props derived from currentPath/query in App.svelte or via router
     interface Props {
         slug?: string;
     }
 
     let { slug = "" }: Props = $props();
 
-    let title = $state("");
-    let postSlug = $state("");
-    let description = $state("");
-    let tags = $state("");
-    let content = $state("");
+    let formData = $state({
+        title: "",
+        slug: "",
+        description: "",
+        tags: "",
+        content: "",
+    });
+
     let loading = $state(false);
     let saving = $state(false);
     let error = $state("");
+    let slugTouched = $state(false);
 
-    let editor: EasyMDE | null = $state(null);
-    let editorElement: HTMLTextAreaElement | undefined = $state();
+    const schema: FieldSchema[] = [
+        {
+            field: "title",
+            label: "Title",
+            type: "input",
+            placeholder: "Enter post title...",
+        },
+        {
+            field: "slug",
+            label: "Slug",
+            type: "input",
+            placeholder: "post-url-slug",
+        },
+        {
+            field: "tags",
+            label: "Tags",
+            type: "input",
+            placeholder: "tech, svelte, adonis",
+        },
+        {
+            field: "description",
+            label: "Description",
+            type: "textarea",
+            placeholder: "Brief summary...",
+        },
+        { field: "content", label: "Rich Content", type: "richtext" },
+    ];
+
+    // Auto-generate slug from title
+    $effect(() => {
+        if (!slug && formData.title && !slugTouched) {
+            formData.slug = formData.title
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, "")
+                .replace(/[\s_-]+/g, "-")
+                .replace(/^-+|-+$/g, "");
+        }
+    });
+
+    // Detect manual slug edits to stop auto-generation
+    $effect(() => {
+        if (formData.slug) {
+            // This is a simple way to detect if the user started typing in the slug field
+            // Logic: if price doesn't match auto-gen, consider it touched
+            const autoGen = formData.title
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, "")
+                .replace(/[\s_-]+/g, "-")
+                .replace(/^-+|-+$/g, "");
+
+            if (formData.slug !== autoGen && formData.slug !== "") {
+                slugTouched = true;
+            }
+        }
+    });
 
     onMount(async () => {
-        editor = new EasyMDE({
-            element: editorElement!,
-            initialValue: content,
-            spellChecker: false,
-            autosave: {
-                enabled: true,
-                uniqueId: "admin-post-editor",
-            },
-        });
-
-        editor.codemirror.on("change", () => {
-            content = editor!.value();
-        });
-
         if (slug) {
             loadPost();
         }
     });
 
-    onDestroy(() => {
-        if (editor) {
-            editor.toTextArea();
-            editor = null;
-        }
-    });
-
     async function loadPost() {
-        // 1. Instant Cache Hydration
         const localPost = adminState.getPostBySlugLocal(slug);
         if (localPost) {
-            title = localPost.title;
-            postSlug = localPost.slug;
-            description = localPost.description || "";
-            tags = Array.isArray(localPost.tags)
-                ? localPost.tags.join(", ")
-                : localPost.tags;
-            content = localPost.content;
-            if (editor) editor.value(content);
-            // We have data! No need to show "Loading..."
+            hydrateForm(localPost);
             loading = false;
         } else {
             loading = true;
@@ -72,22 +100,27 @@
             const res = await fetch(`http://localhost:3333/api/posts/${slug}`);
             if (!res.ok) {
                 if (!localPost) throw new Error("Post not found");
-                return; // Silently fail if we have local data but server is down
+                return;
             }
-            const post = await res.json();
-
-            title = post.title;
-            postSlug = post.slug;
-            description = post.description || "";
-            tags = Array.isArray(post.tags) ? post.tags.join(", ") : post.tags;
-            content = post.content;
-
-            if (editor) editor.value(content);
+            const remotePost = await res.json();
+            hydrateForm(remotePost);
         } catch (e: any) {
             if (!localPost) error = e.message;
         } finally {
             loading = false;
         }
+    }
+
+    function hydrateForm(data: Post) {
+        formData = {
+            title: data.title,
+            slug: data.slug,
+            description: data.description || "",
+            tags: Array.isArray(data.tags)
+                ? data.tags.join(", ")
+                : data.tags || "",
+            content: data.content,
+        };
     }
 
     async function savePost() {
@@ -104,11 +137,8 @@
                 method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    title,
-                    slug: postSlug || undefined,
-                    content,
-                    description,
-                    tags: tags
+                    ...formData,
+                    tags: formData.tags
                         .split(",")
                         .map((t) => t.trim())
                         .filter((t) => t),
@@ -145,47 +175,14 @@
     </div>
 
     {#if loading}
-        <p>Loading post data...</p>
+        <div class="flex items-center justify-center p-12">
+            <p class="text-slate-500 animate-pulse text-lg">
+                Loading post data...
+            </p>
+        </div>
     {:else}
-        <div class="form">
-            <div class="field">
-                <label for="title">Title</label>
-                <input
-                    id="title"
-                    bind:value={title}
-                    placeholder="Enter post title..."
-                />
-            </div>
-
-            <div class="field">
-                <label for="slug">Slug</label>
-                <input
-                    id="slug"
-                    bind:value={postSlug}
-                    placeholder="post-url-slug"
-                    disabled={!!slug}
-                />
-            </div>
-
-            <div class="field">
-                <label for="tags">Tags (comma separated)</label>
-                <input
-                    id="tags"
-                    bind:value={tags}
-                    placeholder="tech, svelte, adonis"
-                />
-            </div>
-
-            <div class="field">
-                <label for="desc">Description</label>
-                <textarea id="desc" bind:value={description} rows="2"
-                ></textarea>
-            </div>
-
-            <div class="field">
-                <label for="content">Content</label>
-                <textarea bind:this={editorElement}></textarea>
-            </div>
+        <div class="bg-gray-50/50 p-6 rounded-xl border border-gray-100">
+            <DynamicForm {schema} bind:data={formData} />
         </div>
     {/if}
 
@@ -225,27 +222,6 @@
         padding: 0.6rem 1.5rem;
         border-radius: 4px;
         cursor: pointer;
-    }
-    .form {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-    }
-    .field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .field label {
-        font-weight: bold;
-        color: #444;
-    }
-    input,
-    textarea {
-        padding: 0.75rem;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 1rem;
     }
     .error {
         color: red;
