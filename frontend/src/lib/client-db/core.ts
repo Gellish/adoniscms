@@ -26,31 +26,25 @@ export class ClientDB {
 
         this.initPromise = (async () => {
             try {
-                // 1. Probe current version and stores (without hanging)
-                // We use a small timeout to detect if probing itself is blocked
-                const probePromise = openDB(this.DB_NAME);
-                const probe = await Promise.race([
-                    probePromise,
-                    new Promise((_, reject) => setTimeout(() => reject('timeout'), 1000))
-                ]) as IDBPDatabase;
+                // 1. Probe version using native API (which is non-blocking to the app thread)
+                const probeVersion = await new Promise<number>((resolve) => {
+                    const req = indexedDB.open(this.DB_NAME);
+                    req.onsuccess = (e: any) => {
+                        const db = e.target.result;
+                        const v = db.version;
+                        db.close();
+                        resolve(v);
+                    };
+                    req.onupgradeneeded = (e: any) => {
+                        e.target.transaction.abort();
+                        resolve(0);
+                    };
+                    req.onerror = () => resolve(0);
+                });
 
-                const currentVersion = probe.version;
-                const currentStores = Array.from(probe.objectStoreNames);
-
-                let tables: TableMeta[] = [];
-                if (currentStores.includes('_meta')) {
-                    tables = await probe.getAll('_meta');
-                }
-                probe.close();
-
-                // 2. Determine if upgrade is needed
-                const SYSTEM_STORES = ['_meta', '_syncQueue', 'superadmin', 'menus'];
-                const neededStores = [...SYSTEM_STORES, ...tables.map(t => t.name)];
-                const missing = neededStores.filter(s => !currentStores.includes(s));
-
-                // version 10 is our safety baseline. Increment from there if stores are missing.
-                let targetVersion = Math.max(currentVersion, 10);
-                if (missing.length > 0) targetVersion++;
+                // 2. Determine target version (v10+ safety)
+                let targetVersion = Math.max(probeVersion, 9);
+                targetVersion++;
 
                 const db = await openDB(this.DB_NAME, targetVersion, {
                     upgrade(db) {
@@ -61,18 +55,9 @@ export class ClientDB {
                         }
                         if (!db.objectStoreNames.contains('superadmin')) db.createObjectStore('superadmin', { keyPath: 'id' });
                         if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
-
-                        tables.forEach(table => {
-                            if (!db.objectStoreNames.contains(table.name)) {
-                                const store = db.createObjectStore(table.name, { keyPath: table.keyPath || 'id' });
-                                if (table.indices) {
-                                    table.indices.forEach(idx => store.createIndex(idx, idx));
-                                }
-                            }
-                        });
                     },
                     blocked() {
-                        console.warn('[ClientDB] Open blocked. Closing other tabs...');
+                        console.warn('[ClientDB] Upgrade blocked. Close other tabs!');
                     }
                 });
 

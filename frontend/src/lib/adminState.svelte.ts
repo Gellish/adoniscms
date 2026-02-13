@@ -58,9 +58,11 @@ export const adminState = {
                     new Promise((_, reject) => setTimeout(() => reject('timeout'), 1000))
                 ]) as any;
 
-                const dbStats = await db.get('stats', 'admin_stats');
-                if (dbStats && !stats) {
-                    stats = dbStats;
+                if (db !== 'timeout') {
+                    const dbStats = await db.get('stats', 'admin_stats');
+                    if (dbStats && !stats) {
+                        stats = dbStats;
+                    }
                 }
             } catch (e) {
                 console.warn("[AdminState] Polyglot Stats load skipped", e);
@@ -76,9 +78,11 @@ export const adminState = {
                     new Promise((_, reject) => setTimeout(() => reject('timeout'), 1000))
                 ]) as any;
 
-                const allUsers = await dbRef.getAll('auth');
-                if (users.length === 0 && allUsers.length > 0) {
-                    users = allUsers;
+                if (dbRef !== 'timeout') {
+                    const allUsers = await dbRef.getAll('auth');
+                    if (users.length === 0 && allUsers.length > 0) {
+                        users = allUsers;
+                    }
                 }
             } catch (e) {
                 console.warn("[AdminState] Polyglot Users load skipped", e);
@@ -142,7 +146,7 @@ export const adminState = {
                 if (JSON.stringify(newStats) !== JSON.stringify(stats)) {
                     stats = newStats;
                     localStorage.setItem('admin_stats_cache', JSON.stringify(newStats));
-                    await PolyglotActions.setStats(newStats); // Fixed: Use PolyglotActions instead of ClientDB
+                    await PolyglotActions.setStats(newStats);
                 }
                 isOffline = false;
             }
