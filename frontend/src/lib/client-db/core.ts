@@ -29,10 +29,8 @@ export class ClientDB {
                 // Determine missing stores based on static analysis + system needs
                 const SYSTEM_STORES = ['_meta', '_syncQueue', 'superadmin', 'menus'];
 
-                // We'll use a hardcoded version for system stores, then increment if tables are added
-                // For now, let's keep it simple: try opening, and if upgrade is needed, let 'idb' handle it.
-                // VERSION 5: Unified with menus and system cleanup
-                const db = await openDB(this.DB_NAME, 5, {
+                // Directly open version 6 to force resolution of any blocked version 5 probes
+                const db = await openDB(this.DB_NAME, 6, {
                     upgrade(db) {
                         if (!db.objectStoreNames.contains('_meta')) db.createObjectStore('_meta', { keyPath: 'name' });
                         if (!db.objectStoreNames.contains('_syncQueue')) {
@@ -43,14 +41,13 @@ export class ClientDB {
                         if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
                     },
                     blocked() {
-                        console.warn('[ClientDB] Upgrade blocked. Closing this tab might help.');
+                        console.warn('[ClientDB] Upgrade blocked by another tab.');
                     }
                 });
 
                 db.onversionchange = () => {
                     db.close();
                     this.initPromise = null;
-                    if (typeof window !== 'undefined') window.location.reload();
                 };
 
                 await this.seedSystemData(db);

@@ -4,23 +4,27 @@
     import { goto } from "$app/navigation";
     import { adminState } from "$lib/adminState.svelte";
     import { browser } from "$app/environment";
-    import { page } from "$app/state";
 
     let { children } = $props<{ children: any }>();
     const auth = useAuth();
 
-    // Fast hydration from localStorage (sync call)
-    // Removed top-level loadAllLocal to prevent initialization hangs
+    // Trigger fast local load as early as possible
+    if (browser) {
+        adminState.loadAllLocal();
+    }
 
-    onMount(() => {
-        // Fast local load (non-blocking)
-        adminState.loadAllLocal().then(() => {
-            // Background API refresh after local data is ready
-            adminState.refreshFromAPI();
-            // Start real-time polling
-            adminState.startPolling();
-        });
+    onMount(async () => {
+        // Fast local load (safeguard)
+        await adminState.loadAllLocal();
+        // Background API refresh
+        adminState.refreshFromAPI();
+        // Start real-time polling
+        adminState.startPolling();
     });
+
+    function navigateTo(path: string) {
+        goto(path);
+    }
 
     function handleLogout() {
         auth.logout();
@@ -35,45 +39,28 @@
         </div>
 
         <nav>
-            <a
-                href="/admin"
-                class="nav-item"
-                class:active={page.url.pathname === "/admin"}
-            >
+            <button onclick={() => navigateTo("/admin")} class="nav-item">
                 <span>Dashboard</span>
-            </a>
-            <a
-                href="/admin/posts"
-                class="nav-item"
-                class:active={page.url.pathname.startsWith("/admin/posts")}
-            >
+            </button>
+            <button onclick={() => navigateTo("/admin/posts")} class="nav-item">
                 <span>Posts</span>
-            </a>
-            <a
-                href="/admin/users"
-                class="nav-item"
-                class:active={page.url.pathname.startsWith("/admin/users")}
-            >
+            </button>
+            <button onclick={() => navigateTo("/admin/users")} class="nav-item">
                 <span>Users</span>
-            </a>
-            <a
-                href="/admin/menus"
-                class="nav-item"
-                class:active={page.url.pathname.startsWith("/admin/menus")}
-            >
+            </button>
+            <button onclick={() => navigateTo("/admin/menus")} class="nav-item">
                 <span>Menus</span>
-            </a>
-            <a
-                href="/admin/database"
+            </button>
+            <button
+                onclick={() => navigateTo("/admin/database")}
                 class="nav-item"
-                class:active={page.url.pathname.startsWith("/admin/database")}
             >
                 <span>Database Builder</span>
-            </a>
+            </button>
             <div class="divider"></div>
-            <a href="/" class="nav-item secondary">
+            <button onclick={() => navigateTo("/")} class="nav-item secondary">
                 <span>Public Site</span>
-            </a>
+            </button>
         </nav>
     </aside>
 
@@ -129,8 +116,6 @@
         gap: 0.5rem;
     }
     .nav-item {
-        display: block;
-        text-decoration: none;
         background: none;
         border: none;
         color: #dfe6e9;
