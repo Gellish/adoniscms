@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { page } from "$app/state";
     import { useAuth } from "$lib/auth.svelte";
     import { goto } from "$app/navigation";
     import { adminState } from "$lib/adminState.svelte";
@@ -39,28 +40,45 @@
         </div>
 
         <nav>
-            <button onclick={() => navigateTo("/admin")} class="nav-item">
-                <span>Dashboard</span>
-            </button>
-            <button onclick={() => navigateTo("/admin/posts")} class="nav-item">
-                <span>Posts</span>
-            </button>
-            <button onclick={() => navigateTo("/admin/users")} class="nav-item">
-                <span>Users</span>
-            </button>
-            <button onclick={() => navigateTo("/admin/menus")} class="nav-item">
-                <span>Menus</span>
-            </button>
-            <button
-                onclick={() => navigateTo("/admin/database")}
+            <a
+                href="/admin"
                 class="nav-item"
+                class:active={page.url.pathname === "/admin"}
+            >
+                <span>Dashboard</span>
+            </a>
+            <a
+                href="/admin/posts"
+                class="nav-item"
+                class:active={page.url.pathname === "/admin/posts"}
+            >
+                <span>Posts</span>
+            </a>
+            <a
+                href="/admin/users"
+                class="nav-item"
+                class:active={page.url.pathname === "/admin/users"}
+            >
+                <span>Users</span>
+            </a>
+            <a
+                href="/admin/menus"
+                class="nav-item"
+                class:active={page.url.pathname === "/admin/menus"}
+            >
+                <span>Menus</span>
+            </a>
+            <a
+                href="/admin/database"
+                class="nav-item"
+                class:active={page.url.pathname === "/admin/database"}
             >
                 <span>Database Builder</span>
-            </button>
+            </a>
             <div class="divider"></div>
-            <button onclick={() => navigateTo("/")} class="nav-item secondary">
+            <a href="/" class="nav-item secondary">
                 <span>Public Site</span>
-            </button>
+            </a>
         </nav>
     </aside>
 
@@ -125,12 +143,11 @@
         cursor: pointer;
         font-size: 1rem;
         transition: background 0.2s;
+        text-decoration: none;
+        display: block;
     }
-    .nav-item:hover {
-        background: #3d4648;
-        color: white;
-    }
-    .nav-item:hover {
+    .nav-item:hover,
+    .nav-item.active {
         background: #3d4648;
         color: white;
     }

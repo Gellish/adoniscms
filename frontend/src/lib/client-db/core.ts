@@ -83,12 +83,33 @@ export class ClientDB {
      */
     static async seedSystemData(db: IDBPDatabase): Promise<void> {
         try {
-            console.log('[ClientDB] Checking system data...');
-            const tx = db.transaction('superadmin', 'readwrite');
-            const store = tx.objectStore('superadmin');
-            const count = await store.count();
+            // Seed menus
+            console.log('[ClientDB] Checking menus data...');
+            const txMenus = db.transaction('menus', 'readwrite');
+            const countMenus = await txMenus.store.count();
+            if (countMenus === 0) {
+                console.log('[ClientDB] Seeding default menus...');
+                await txMenus.store.put({
+                    id: "1",
+                    name: "Main Navigation",
+                    items: [
+                        { id: "1a", label: "Home", url: "/", children: [], isOpen: true },
+                        { id: "1b", label: "Blog", url: "/blog", isOpen: true, children: [] }
+                    ]
+                });
+                console.log('[ClientDB] Default menus seeded.');
+            } else {
+                console.log('[ClientDB] Menus already present.');
+            }
+            await txMenus.done;
 
-            if (count === 0) {
+            // Seed superadmin
+            console.log('[ClientDB] Checking superadmin data...');
+            const txSuperadmin = db.transaction('superadmin', 'readwrite');
+            const storeSuperadmin = txSuperadmin.objectStore('superadmin');
+            const countSuperadmin = await storeSuperadmin.count();
+
+            if (countSuperadmin === 0) {
                 console.log('[ClientDB] Seeding default admin...');
                 await store.put({
                     id: 'default-admin',
