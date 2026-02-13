@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { adminState } from "../lib/adminState.svelte";
+    import { adminState } from "$lib/adminState.svelte";
     import { goto } from "$app/navigation";
-
+    import type { Post } from "$lib/types";
     function navigateTo(path: string) {
         goto(path);
     }

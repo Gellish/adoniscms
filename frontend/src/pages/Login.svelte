@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { useAuth } from "../lib/auth.svelte";
+    import { useAuth } from "$lib/auth.svelte";
     import { goto } from "$app/navigation";
 
     const auth = useAuth();

@@ -1,5 +1,5 @@
 <script>
-    import AdminLayout from "../../components/AdminLayout.svelte";
+    import AdminLayout from "$comp/AdminLayout.svelte";
     let { children } = $props();
 </script>
 

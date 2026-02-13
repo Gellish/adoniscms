@@ -1,6 +1,6 @@
 <script lang="ts">
-    import DynamicForm from "../lib/components/DynamicForm.svelte";
-    import type { FieldSchema } from "../lib/types";
+    import DynamicForm from "$lib/components/DynamicForm.svelte";
+    import type { FieldSchema } from "$lib/types";
 
     let demoData = $state({
         firstName: "John",

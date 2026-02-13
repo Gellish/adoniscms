@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { FieldSchema } from "../types";
+    import type { FieldSchema } from "$lib/types";
     import InputInterface from "./interfaces/InputInterface.svelte";
     import TextareaInterface from "./interfaces/TextareaInterface.svelte";
     import SelectInterface from "./interfaces/SelectInterface.svelte";

@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { adminState } from "../lib/adminState.svelte";
+    import { adminState } from "$lib/adminState.svelte";
     import { goto } from "$app/navigation";
-    import type { Post } from "../lib/types";
+    import type { Post } from "$lib/types";
 
     async function deletePost(slug: string) {
         if (!confirm("Are you sure you want to delete this post?")) return;

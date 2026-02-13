@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { useAuth } from "../lib/auth.svelte";
-    import { adminState } from "../lib/adminState.svelte";
+    import { useAuth } from "$lib/auth.svelte";
+    import { adminState } from "$lib/adminState.svelte";
     import { goto } from "$app/navigation";
-    import adminAvatar from "../assets/admin-avatar.png";
+    import adminAvatar from "$assets/admin-avatar.png";
 
     const auth = useAuth();
 

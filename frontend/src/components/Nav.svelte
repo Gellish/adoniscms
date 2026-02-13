@@ -1,7 +1,7 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import { useAuth } from "../lib/auth.svelte";
-    import { linkPrefetch } from "../lib/prefetch";
+    import { useAuth } from "$lib/auth.svelte";
+    import { linkPrefetch } from "$lib/prefetch";
 
     const auth = useAuth();
     let isMobileMenuOpen = $state(false);

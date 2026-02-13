@@ -1,8 +1,8 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { adminState } from "../lib/adminState.svelte";
-    import DynamicForm from "../lib/components/DynamicForm.svelte";
-    import type { FieldSchema, Post } from "../lib/types";
+    import { adminState } from "$lib/adminState.svelte";
+    import DynamicForm from "$lib/components/DynamicForm.svelte";
+    import type { FieldSchema, Post } from "$lib/types";
 
     interface Props {
         slug?: string;

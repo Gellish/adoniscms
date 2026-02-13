@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { PostService } from "../../lib/postService";
-    import type { Post } from "../../lib/types";
+    import { PostService } from "$lib/postService";
+    import type { Post } from "$lib/types";
 
     let posts = $state<Post[]>([]);
     let loading = $state(true);

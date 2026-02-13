@@ -1,7 +1,7 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import { PostService } from "../../../lib/postService";
-    import type { Post } from "../../../lib/types";
+    import { PostService } from "$lib/postService";
+    import type { Post } from "$lib/types";
 
     let slug = $derived($page.params.slug);
 

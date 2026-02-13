@@ -1,5 +1,5 @@
 <script>
-    import AdminUsers from "../../../pages/AdminUsers.svelte";
+    import AdminUsers from "$pages/AdminUsers.svelte";
 </script>
 
 <AdminUsers />

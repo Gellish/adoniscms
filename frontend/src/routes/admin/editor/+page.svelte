@@ -1,6 +1,6 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import AdminEditor from "../../../pages/AdminEditor.svelte";
+    import AdminEditor from "$pages/AdminEditor.svelte";
 
     // Get slug from URL query param ?slug=...
     let slug = $derived($page.url.searchParams.get("slug") || "");

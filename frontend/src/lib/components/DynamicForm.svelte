@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { FieldSchema } from "../types";
+    import type { FieldSchema } from "$lib/types";
     import UniversalField from "./UniversalField.svelte";
 
     interface Props {

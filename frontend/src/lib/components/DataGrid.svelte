@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { ClientDB } from "../client-db/core";
-    import { SyncEngine } from "../client-db/sync/engine";
+    import { ClientDB } from "$lib/client-db/core";
+    import { SyncEngine } from "$lib/client-db/sync/engine";
 
     let { tableName, readOnly = false } = $props<{
         tableName: string;
