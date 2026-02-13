@@ -45,16 +45,13 @@ export class ClientDB {
 
                 // 2. Determine if upgrade is needed
                 const SYSTEM_STORES = ['_meta', '_syncQueue', 'superadmin', 'menus'];
-                const missingStores = [...SYSTEM_STORES, ...tables.map(t => t.name)]
-                    .filter(s => !currentStores.includes(s));
+                const neededStores = [...SYSTEM_STORES, ...tables.map(t => t.name)];
+                const missing = neededStores.filter(s => !currentStores.includes(s));
 
-                // If current version is less than 10, jump to 10 to clear legacy messes
+                // version 10 is our safety baseline. Increment from there if stores are missing.
                 let targetVersion = Math.max(currentVersion, 10);
-                if (missingStores.length > 0) {
-                    targetVersion++;
-                }
+                if (missing.length > 0) targetVersion++;
 
-                // 3. Open with potential upgrade
                 const db = await openDB(this.DB_NAME, targetVersion, {
                     upgrade(db) {
                         if (!db.objectStoreNames.contains('_meta')) db.createObjectStore('_meta', { keyPath: 'name' });
@@ -65,7 +62,6 @@ export class ClientDB {
                         if (!db.objectStoreNames.contains('superadmin')) db.createObjectStore('superadmin', { keyPath: 'id' });
                         if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
 
-                        // Create missing user tables
                         tables.forEach(table => {
                             if (!db.objectStoreNames.contains(table.name)) {
                                 const store = db.createObjectStore(table.name, { keyPath: table.keyPath || 'id' });
@@ -76,7 +72,7 @@ export class ClientDB {
                         });
                     },
                     blocked() {
-                        console.warn('[ClientDB] Upgrade blocked. Closing tab might help.');
+                        console.warn('[ClientDB] Open blocked. Closing other tabs...');
                     }
                 });
 
