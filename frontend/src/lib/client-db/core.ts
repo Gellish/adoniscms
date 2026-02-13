@@ -26,8 +26,36 @@ export class ClientDB {
 
         this.initPromise = (async () => {
             try {
-                // Determine target version - we jump to 10 to clear all previous trial versions
-                const db = await openDB(this.DB_NAME, 10, {
+                // 1. Probe current version and stores (without hanging)
+                // We use a small timeout to detect if probing itself is blocked
+                const probePromise = openDB(this.DB_NAME);
+                const probe = await Promise.race([
+                    probePromise,
+                    new Promise((_, reject) => setTimeout(() => reject('timeout'), 1000))
+                ]) as IDBPDatabase;
+
+                const currentVersion = probe.version;
+                const currentStores = Array.from(probe.objectStoreNames);
+
+                let tables: TableMeta[] = [];
+                if (currentStores.includes('_meta')) {
+                    tables = await probe.getAll('_meta');
+                }
+                probe.close();
+
+                // 2. Determine if upgrade is needed
+                const SYSTEM_STORES = ['_meta', '_syncQueue', 'superadmin', 'menus'];
+                const missingStores = [...SYSTEM_STORES, ...tables.map(t => t.name)]
+                    .filter(s => !currentStores.includes(s));
+
+                // If current version is less than 10, jump to 10 to clear legacy messes
+                let targetVersion = Math.max(currentVersion, 10);
+                if (missingStores.length > 0) {
+                    targetVersion++;
+                }
+
+                // 3. Open with potential upgrade
+                const db = await openDB(this.DB_NAME, targetVersion, {
                     upgrade(db) {
                         if (!db.objectStoreNames.contains('_meta')) db.createObjectStore('_meta', { keyPath: 'name' });
                         if (!db.objectStoreNames.contains('_syncQueue')) {
@@ -36,9 +64,19 @@ export class ClientDB {
                         }
                         if (!db.objectStoreNames.contains('superadmin')) db.createObjectStore('superadmin', { keyPath: 'id' });
                         if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
+
+                        // Create missing user tables
+                        tables.forEach(table => {
+                            if (!db.objectStoreNames.contains(table.name)) {
+                                const store = db.createObjectStore(table.name, { keyPath: table.keyPath || 'id' });
+                                if (table.indices) {
+                                    table.indices.forEach(idx => store.createIndex(idx, idx));
+                                }
+                            }
+                        });
                     },
                     blocked() {
-                        console.warn('[ClientDB] Upgrade blocked. Tab reload recommended.');
+                        console.warn('[ClientDB] Upgrade blocked. Closing tab might help.');
                     }
                 });
 
