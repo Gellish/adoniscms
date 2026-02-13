@@ -1,3 +1,4 @@
+<script lang="ts">
     import { onMount } from "svelte";
     import type { Menu } from "$lib/types";
     import { ClientDB } from "$lib/db.js";
@@ -12,11 +13,29 @@
             id: "1",
             name: "Main Navigation",
             items: [
-                { id: "1a", label: "Home", url: "/", children: [], isOpen: true },
-                { id: "1b", label: "Blog", url: "/blog", isOpen: true, children: [] },
-                { id: "1c", label: "About", url: "/about", children: [], isOpen: true },
+                {
+                    id: "1a",
+                    label: "Home",
+                    url: "/",
+                    children: [],
+                    isOpen: true,
+                },
+                {
+                    id: "1b",
+                    label: "Blog",
+                    url: "/blog",
+                    isOpen: true,
+                    children: [],
+                },
+                {
+                    id: "1c",
+                    label: "About",
+                    url: "/about",
+                    children: [],
+                    isOpen: true,
+                },
             ],
-        }
+        },
     ];
 
     onMount(async () => {
@@ -69,7 +88,7 @@
         const newMenu: Menu = {
             id: crypto.randomUUID(),
             name,
-            items: []
+            items: [],
         };
         menus.push(newMenu);
         activeMenuId = newMenu.id;
@@ -159,43 +178,51 @@
         <!-- Main Builder -->
         <div class="md:col-span-3">
             {#if isLoading}
-                <div class="bg-white rounded-2xl p-12 text-center border border-slate-200">
-                    <p class="text-slate-400 font-bold animate-pulse">Initializing Menu Engine...</p>
+                <div
+                    class="bg-white rounded-2xl p-12 text-center border border-slate-200"
+                >
+                    <p class="text-slate-400 font-bold animate-pulse">
+                        Initializing Menu Engine...
+                    </p>
                 </div>
             {:else if menus.length > 0 && activeMenu}
-            <div
-                class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
-            >
                 <div
-                    class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between"
+                    class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
                 >
-                    <div class="flex items-center gap-3">
-                        <h2 class="font-bold text-slate-800">
-                            {activeMenu.name}
-                        </h2>
-                        <span
-                            class="px-2 py-0.5 bg-slate-200 text-slate-600 rounded text-[10px] font-bold uppercase tracking-wider"
-                            >Active</span
-                        >
+                    <div
+                        class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between"
+                    >
+                        <div class="flex items-center gap-3">
+                            <h2 class="font-bold text-slate-800">
+                                {activeMenu.name}
+                            </h2>
+                            <span
+                                class="px-2 py-0.5 bg-slate-200 text-slate-600 rounded text-[10px] font-bold uppercase tracking-wider"
+                                >Active</span
+                            >
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input
+                                type="text"
+                                bind:value={menus[activeMenuIndex].name}
+                                class="text-sm px-3 py-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <input
-                            type="text"
-                            bind:value={menus[activeMenuIndex].name}
-                            class="text-sm px-3 py-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                    </div>
-                </div>
 
-                <div class="p-6">
-                    {#key activeMenuId}
-                        <MenuBuilder bind:menu={menus[activeMenuIndex]} />
-                    {/key}
+                    <div class="p-6">
+                        {#key activeMenuId}
+                            <MenuBuilder bind:menu={menus[activeMenuIndex]} />
+                        {/key}
+                    </div>
                 </div>
-            </div>
             {:else}
-                <div class="bg-white rounded-2xl p-12 text-center border border-slate-200">
-                    <p class="text-slate-400">No menus found. Create one to get started.</p>
+                <div
+                    class="bg-white rounded-2xl p-12 text-center border border-slate-200"
+                >
+                    <p class="text-slate-400">
+                        No menus found. Create one to get started.
+                    </p>
                 </div>
             {/if}
 

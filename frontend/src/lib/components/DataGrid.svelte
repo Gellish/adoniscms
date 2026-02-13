@@ -236,10 +236,23 @@
                                 >{row.id.slice(0, 8)}...</td
                             >
                             {#each columns as col}
-                                <td class="p-4 font-bold text-gray-600">
-                                    {typeof row[col] === "object"
-                                        ? JSON.stringify(row[col])
-                                        : row[col]}
+                                <td class="p-4">
+                                    {#if typeof row[col] === "object" && row[col] !== null}
+                                        <div
+                                            class="bg-gray-50 p-2 rounded border border-gray-100 font-mono text-[9px] max-h-24 overflow-auto scrollbar-thin"
+                                        >
+                                            <pre
+                                                class="whitespace-pre-wrap">{JSON.stringify(
+                                                    row[col],
+                                                    null,
+                                                    2,
+                                                )}</pre>
+                                        </div>
+                                    {:else}
+                                        <span class="font-bold text-gray-600"
+                                            >{row[col]}</span
+                                        >
+                                    {/if}
                                 </td>
                             {/each}
                             {#if !readOnly}
