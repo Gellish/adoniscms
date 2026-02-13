@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { FieldSchema } from "$lib/types";
-    import UniversalField from "$ui/UniversalField.svelte";
+    import UniversalField from "$interfaces/UniversalField.svelte";
 
     interface Props {
         schema: FieldSchema[];

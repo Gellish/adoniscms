@@ -19,7 +19,7 @@ const config = {
       '$comp': 'src/components',
       '$assets': 'src/assets',
       '$lib': 'src/lib',
-      '$ui': 'src/lib/components'
+      '$interfaces': 'src/lib/components'
     }
   }
 };

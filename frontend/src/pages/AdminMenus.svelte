@@ -1,82 +1,79 @@
-<script lang="ts">
+    import { onMount } from "svelte";
     import type { Menu } from "$lib/types";
+    import { ClientDB } from "$lib/db.js";
     import MenuBuilder from "$lib/components/MenuBuilder.svelte";
     import AdminLayout from "$comp/AdminLayout.svelte";
 
-    let menus = $state<Menu[]>([
+    let menus = $state<Menu[]>([]);
+    let isLoading = $state(true);
+
+    const DEFAULT_MENUS: Menu[] = [
         {
             id: "1",
             name: "Main Navigation",
             items: [
-                {
-                    id: "1a",
-                    label: "Home",
-                    url: "/",
-                    children: [],
-                    isOpen: true,
-                },
-                {
-                    id: "1b",
-                    label: "Blog",
-                    url: "/blog",
-                    isOpen: true,
-                    children: [
-                        {
-                            id: "1b1",
-                            label: "Recent Posts",
-                            url: "/blog/recent",
-                            children: [],
-                            isOpen: true,
-                        },
-                        {
-                            id: "1b2",
-                            label: "Categories",
-                            url: "/blog/categories",
-                            children: [],
-                            isOpen: true,
-                        },
-                    ],
-                },
-                {
-                    id: "1c",
-                    label: "About",
-                    url: "/about",
-                    children: [],
-                    isOpen: true,
-                },
+                { id: "1a", label: "Home", url: "/", children: [], isOpen: true },
+                { id: "1b", label: "Blog", url: "/blog", isOpen: true, children: [] },
+                { id: "1c", label: "About", url: "/about", children: [], isOpen: true },
             ],
-        },
-        {
-            id: "2",
-            name: "Footer Menu",
-            items: [
-                {
-                    id: "2a",
-                    label: "Privacy Policy",
-                    url: "/privacy",
-                    children: [],
-                    isOpen: true,
-                },
-                {
-                    id: "2b",
-                    label: "Terms of Service",
-                    url: "/terms",
-                    children: [],
-                    isOpen: true,
-                },
-            ],
-        },
-    ]);
+        }
+    ];
 
-    let activeMenuId = $state(menus[0].id);
+    onMount(async () => {
+        await loadMenus();
+    });
+
+    async function loadMenus() {
+        isLoading = true;
+        try {
+            const stored = await ClientDB.getMenus();
+            if (stored && stored.length > 0) {
+                menus = stored;
+            } else {
+                menus = DEFAULT_MENUS;
+            }
+        } catch (e) {
+            console.error("Failed to load menus", e);
+            menus = DEFAULT_MENUS;
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    let activeMenuId = $state("");
+    $effect(() => {
+        if (!activeMenuId && menus.length > 0) {
+            activeMenuId = menus[0].id;
+        }
+    });
+
     let activeMenuIndex = $derived(
         menus.findIndex((m) => m.id === activeMenuId),
     );
     let activeMenu = $derived(menus[activeMenuIndex] || menus[0]);
 
-    function saveMenus() {
-        console.log("Saving menus:", $state.snapshot(menus));
-        alert("Menus saved successfully! (Simulation)");
+    async function saveMenus() {
+        try {
+            for (const menu of menus) {
+                await ClientDB.saveMenu($state.snapshot(menu));
+            }
+            alert("Menus saved to IndexedDB!");
+        } catch (e) {
+            alert("Failed to save menus");
+        }
+    }
+
+    async function createNewMenu() {
+        const name = prompt("Enter menu name:");
+        if (!name) return;
+        const newMenu: Menu = {
+            id: crypto.randomUUID(),
+            name,
+            items: []
+        };
+        menus.push(newMenu);
+        activeMenuId = newMenu.id;
+        await ClientDB.saveMenu(newMenu);
     }
 </script>
 
@@ -140,6 +137,7 @@
             {/each}
 
             <button
+                onclick={createNewMenu}
                 class="w-full text-left px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all font-medium flex items-center gap-2 mt-4"
             >
                 <svg
@@ -160,6 +158,11 @@
 
         <!-- Main Builder -->
         <div class="md:col-span-3">
+            {#if isLoading}
+                <div class="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                    <p class="text-slate-400 font-bold animate-pulse">Initializing Menu Engine...</p>
+                </div>
+            {:else if menus.length > 0 && activeMenu}
             <div
                 class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
             >
@@ -190,6 +193,11 @@
                     {/key}
                 </div>
             </div>
+            {:else}
+                <div class="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                    <p class="text-slate-400">No menus found. Create one to get started.</p>
+                </div>
+            {/if}
 
             <div
                 class="mt-8 p-6 bg-amber-50 rounded-2xl border border-amber-100 flex gap-4 items-start"

@@ -4,6 +4,7 @@
     import { SyncEngine } from "$lib/client-db/sync/engine";
     import TableDesigner from "$lib/components/TableDesigner.svelte";
     import DataGrid from "$lib/components/DataGrid.svelte";
+    import AdminMenus from "$pages/AdminMenus.svelte";
 
     const SYSTEM_TABLES = [
         { name: "superadmin", isSystem: true },
@@ -13,7 +14,7 @@
 
     let tables = $state<any[]>(SYSTEM_TABLES);
     let activeTable = $state<any | null>(null);
-    let view = $state<"tables" | "data" | "sync">("tables");
+    let view = $state<"tables" | "data" | "sync" | "menus">("tables");
 
     onMount(async () => {
         await refreshTables();
@@ -139,6 +140,29 @@
                     </svg>
                     Sync Engine
                 </button>
+                <button
+                    onclick={() => (view = "menus")}
+                    class="w-full text-left px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-3 {view ===
+                    'menus'
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-gray-500 hover:bg-gray-50'}"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M4 6h16M4 12h16m-7 6h7"
+                        />
+                    </svg>
+                    Menu Builder
+                </button>
             </nav>
 
             <div class="mt-10">
@@ -229,6 +253,12 @@
                             >
                         </div>
                     </div>
+                </div>
+            {:else if view === "menus"}
+                <div
+                    class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                >
+                    <AdminMenus />
                 </div>
             {/if}
         </main>
