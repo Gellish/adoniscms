@@ -42,7 +42,7 @@ export class ClientDB {
                 probe.close();
 
                 // 2. Determine if we need to upgrade
-                const SYSTEM_STORES = ['_meta', '_syncQueue', 'superadmin'];
+                const SYSTEM_STORES = ['_meta', '_syncQueue', 'superadmin', 'menus'];
                 const allNeededStores = [...SYSTEM_STORES, ...tables.map(t => t.name)];
                 const missingStores = allNeededStores.filter(s => !currentStores.includes(s));
                 const needsUpgrade = missingStores.length > 0;
@@ -59,6 +59,7 @@ export class ClientDB {
                             s.createIndex('by-synced', 'synced');
                         }
                         if (!db.objectStoreNames.contains('superadmin')) db.createObjectStore('superadmin', { keyPath: 'id' });
+                        if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
 
                         tables.forEach(table => {
                             if (!db.objectStoreNames.contains(table.name)) {

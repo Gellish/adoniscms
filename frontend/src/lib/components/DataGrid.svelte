@@ -13,6 +13,12 @@
     let loading = $state(false);
     let error = $state<string | null>(null);
     let editingId = $state<string | null>(null);
+    let expandedRecords = $state<Record<string, boolean>>({});
+
+    function toggleExpand(id: string, col: string) {
+        const key = `${id}-${col}`;
+        expandedRecords[key] = !expandedRecords[key];
+    }
 
     $effect(() => {
         if (tableName) {
@@ -236,17 +242,49 @@
                                 >{row.id.slice(0, 8)}...</td
                             >
                             {#each columns as col}
-                                <td class="p-4">
+                                <td class="p-4 align-top">
                                     {#if typeof row[col] === "object" && row[col] !== null}
-                                        <div
-                                            class="bg-gray-50 p-2 rounded border border-gray-100 font-mono text-[9px] max-h-24 overflow-auto scrollbar-thin"
-                                        >
-                                            <pre
-                                                class="whitespace-pre-wrap">{JSON.stringify(
-                                                    row[col],
-                                                    null,
-                                                    2,
-                                                )}</pre>
+                                        {@const isExpanded =
+                                            expandedRecords[`${row.id}-${col}`]}
+                                        <div class="flex flex-col gap-2">
+                                            <button
+                                                onclick={() =>
+                                                    toggleExpand(row.id, col)}
+                                                class="text-[9px] font-black uppercase text-primary-600 hover:text-black flex items-center gap-1"
+                                            >
+                                                <span
+                                                    >{isExpanded
+                                                        ? "Hide"
+                                                        : "Show"} Nested Data</span
+                                                >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    class="w-3 h-3 transform {isExpanded
+                                                        ? 'rotate-180'
+                                                        : ''} transition-transform"
+                                                    viewBox="0 0 20 20"
+                                                    fill="currentColor"
+                                                >
+                                                    <path
+                                                        fill-rule="evenodd"
+                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                        clip-rule="evenodd"
+                                                    />
+                                                </svg>
+                                            </button>
+
+                                            {#if isExpanded}
+                                                <div
+                                                    class="bg-gray-900 text-green-400 p-3 rounded-lg border border-gray-800 font-mono text-[9px] max-h-48 overflow-auto shadow-inner"
+                                                >
+                                                    <pre
+                                                        class="whitespace-pre-wrap">{JSON.stringify(
+                                                            row[col],
+                                                            null,
+                                                            2,
+                                                        )}</pre>
+                                                </div>
+                                            {/if}
                                         </div>
                                     {:else}
                                         <span class="font-bold text-gray-600"

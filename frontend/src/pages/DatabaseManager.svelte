@@ -7,6 +7,7 @@
 
     const SYSTEM_TABLES = [
         { name: "superadmin", isSystem: true },
+        { name: "menus", isSystem: true },
         { name: "_meta", isSystem: true },
         { name: "_syncQueue", isSystem: true },
     ];

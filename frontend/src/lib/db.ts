@@ -19,8 +19,8 @@ interface PolyglotDB extends DBSchema {
         key: string; // 'admin_stats'
         value: any;
     };
-    menus: {
-        key: string; // menuId
+    stats: {
+        key: string; // 'admin_stats'
         value: any;
     };
 }
@@ -46,13 +46,6 @@ export const dbStart = () => {
                 if (oldVersion < 2) {
                     if (!db.objectStoreNames.contains('stats')) {
                         db.createObjectStore('stats');
-                    }
-                }
-
-                // Version 3: Added menus store
-                if (oldVersion < 3) {
-                    if (!db.objectStoreNames.contains('menus')) {
-                        db.createObjectStore('menus', { keyPath: 'id' });
                     }
                 }
             },
@@ -145,21 +138,5 @@ export const ClientDB = {
     async getStats() {
         const db = await dbStart();
         return db.get('stats', 'admin_stats');
-    },
-
-    // Menu Persistence
-    async saveMenu(menu: any) {
-        const db = await dbStart();
-        await db.put('menus', menu);
-    },
-
-    async getMenus() {
-        const db = await dbStart();
-        return db.getAll('menus');
-    },
-
-    async deleteMenu(id: string) {
-        const db = await dbStart();
-        await db.delete('menus', id);
     }
 };

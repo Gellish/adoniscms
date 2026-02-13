@@ -1,9 +1,8 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import type { Menu } from "$lib/types";
-    import { ClientDB } from "$lib/db.js";
+    import { ClientDB } from "$lib/client-db/core";
     import MenuBuilder from "$lib/components/MenuBuilder.svelte";
-    import AdminLayout from "$comp/AdminLayout.svelte";
 
     let menus = $state<Menu[]>([]);
     let isLoading = $state(true);
@@ -45,7 +44,8 @@
     async function loadMenus() {
         isLoading = true;
         try {
-            const stored = await ClientDB.getMenus();
+            const db = await ClientDB.init();
+            const stored = await db.getAll("menus");
             if (stored && stored.length > 0) {
                 menus = stored;
             } else {
@@ -73,11 +73,15 @@
 
     async function saveMenus() {
         try {
+            const db = await ClientDB.init();
+            const tx = db.transaction("menus", "readwrite");
             for (const menu of menus) {
-                await ClientDB.saveMenu($state.snapshot(menu));
+                await tx.store.put($state.snapshot(menu));
             }
-            alert("Menus saved to IndexedDB!");
+            await tx.done;
+            alert("Menus saved to shared ClientDB!");
         } catch (e) {
+            console.error("Save failed", e);
             alert("Failed to save menus");
         }
     }
@@ -92,7 +96,6 @@
         };
         menus.push(newMenu);
         activeMenuId = newMenu.id;
-        await ClientDB.saveMenu(newMenu);
     }
 </script>
 
