@@ -44,50 +44,57 @@ export const adminState = {
      * Initial fast load for Admin section
      */
     async loadAllLocal() {
-        // 1. Silent Secondary Hydration from IndexedDB
         try {
-            const dbStats = await ClientDB.getStats();
-            if (dbStats && !stats) {
-                stats = dbStats;
+            // 1. Silent Secondary Hydration from IndexedDB
+            try {
+                const dbStats = await ClientDB.getStats();
+                if (dbStats && !stats) {
+                    stats = dbStats;
+                }
+            } catch (e) {
+                // ignore IDB errors, we have localStorage or will get API data
             }
-        } catch (e) {
-            // ignore IDB errors, we have localStorage or will get API data
-        }
 
-        const allPosts = await PostService.getLocalPostsMerged();
-        posts = allPosts;
+            const allPosts = await PostService.getLocalPostsMerged();
+            posts = allPosts;
 
-        // 1.5 Hydrate users from IDB
-        try {
-            const dbRef = await dbStart();
-            const allUsers = await dbRef.getAll('auth');
-            if (users.length === 0 && allUsers.length > 0) {
-                users = allUsers;
-            }
-        } catch (e) { }
+            // 1.5 Hydrate users from IDB
+            try {
+                const dbRef = await dbStart();
+                const allUsers = await dbRef.getAll('auth');
+                if (users.length === 0 && allUsers.length > 0) {
+                    users = allUsers;
+                }
+            } catch (e) { }
 
-        // 2. Initial Stats from local if none exists in cache
-        if (!stats) {
-            stats = {
-                posts: allPosts.length,
-                users: 1,
-                recentPosts: allPosts.slice(0, 5),
-                systemState: "Unsync Mode (Local)"
-            };
-            // Cache these local-only stats too
-            if (browser) {
-                localStorage.setItem('admin_stats_cache', JSON.stringify(stats));
-                try {
-                    await ClientDB.setStats(stats);
-                } catch (e) {
-                    // ignore
+            // 2. Initial Stats from local if none exists in cache
+            if (!stats) {
+                stats = {
+                    posts: allPosts.length,
+                    users: 1,
+                    recentPosts: allPosts.slice(0, 5),
+                    systemState: "Unsync Mode (Local)"
+                };
+                // Cache these local-only stats too
+                if (browser) {
+                    localStorage.setItem('admin_stats_cache', JSON.stringify(stats));
+                    try {
+                        await ClientDB.setStats(stats);
+                    } catch (e) {
+                        // ignore
+                    }
                 }
             }
-        }
 
-        // Initial Users
-        if (users.length === 0) {
-            users = [{ fullName: 'Admin User', email: 'admin@devcms.com', role: 'admin', joinedAt: new Date().toISOString() }];
+            // Initial Users
+            if (users.length === 0) {
+                users = [{ fullName: 'Admin User', email: 'admin@devcms.com', role: 'admin', joinedAt: new Date().toISOString() }];
+            }
+        } catch (globalErr) {
+            console.error("[AdminState] Critical load error:", globalErr);
+            // Fallback to minimal state so UI doesn't crash
+            if (!stats) stats = { posts: 0, users: 1, recentPosts: [], systemState: "Error Recovery Mode" };
+            if (users.length === 0) users = [{ fullName: 'Admin User', email: 'admin@devcms.com', role: 'admin', joinedAt: new Date().toISOString() }];
         }
     },
 

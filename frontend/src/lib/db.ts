@@ -19,14 +19,10 @@ interface PolyglotDB extends DBSchema {
         key: string; // 'admin_stats'
         value: any;
     };
-    stats: {
-        key: string; // 'admin_stats'
-        value: any;
-    };
 }
 
 const DB_NAME = 'polyglot_client_db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbPromise: Promise<IDBPDatabase<PolyglotDB>>;
 
@@ -46,6 +42,13 @@ export const dbStart = () => {
                 if (oldVersion < 2) {
                     if (!db.objectStoreNames.contains('stats')) {
                         db.createObjectStore('stats');
+                    }
+                }
+
+                // Version 4: Cleanup (Moving menus to ClientDB)
+                if (oldVersion < 4) {
+                    if (db.objectStoreNames.contains('menus')) {
+                        db.deleteObjectStore('menus');
                     }
                 }
             },
