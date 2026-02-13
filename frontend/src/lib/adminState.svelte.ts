@@ -1,4 +1,5 @@
-import { ClientDB, dbStart } from '$lib/db.js';
+import { dbStart, ClientDB as PolyglotActions } from '$lib/db.js';
+import { ClientDB } from '$lib/client-db/core';
 import { PostService } from '$lib/postService.js';
 import { browser } from '$app/environment';
 
@@ -49,11 +50,11 @@ export const adminState = {
             const idbRefPromise = dbStart();
             const clientDBInitPromise = ClientDB.init();
 
-            // 1. Silent Secondary Hydration from IndexedDB
+            // 1. Silent Secondary Hydration from PolyglotDB (stats/auth)
             try {
                 // Timeout after 1s if IDB is stuck
                 const db = await Promise.race([
-                    clientDBInitPromise,
+                    idbRefPromise,
                     new Promise((_, reject) => setTimeout(() => reject('timeout'), 1000))
                 ]) as any;
 
@@ -62,13 +63,13 @@ export const adminState = {
                     stats = dbStats;
                 }
             } catch (e) {
-                console.warn("[AdminState] IDB Stats load skipped", e);
+                console.warn("[AdminState] Polyglot Stats load skipped", e);
             }
 
             const allPosts = await PostService.getLocalPostsMerged();
             posts = allPosts;
 
-            // 1.5 Hydrate users from IDB
+            // 1.5 Hydrate users from PolyglotDB
             try {
                 const dbRef = await Promise.race([
                     idbRefPromise,
@@ -80,7 +81,7 @@ export const adminState = {
                     users = allUsers;
                 }
             } catch (e) {
-                console.warn("[AdminState] IDB Users load skipped", e);
+                console.warn("[AdminState] Polyglot Users load skipped", e);
             }
 
             // 2. Initial Stats from local if none exists in cache
@@ -95,7 +96,7 @@ export const adminState = {
                 if (browser) {
                     localStorage.setItem('admin_stats_cache', JSON.stringify(stats));
                     try {
-                        await ClientDB.setStats(stats);
+                        await PolyglotActions.setStats(stats);
                     } catch (e) {
                         // ignore
                     }
@@ -141,7 +142,7 @@ export const adminState = {
                 if (JSON.stringify(newStats) !== JSON.stringify(stats)) {
                     stats = newStats;
                     localStorage.setItem('admin_stats_cache', JSON.stringify(newStats));
-                    await ClientDB.setStats(newStats); // Also save to IDB
+                    await PolyglotActions.setStats(newStats); // Fixed: Use PolyglotActions instead of ClientDB
                 }
                 isOffline = false;
             }

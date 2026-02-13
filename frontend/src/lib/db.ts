@@ -41,8 +41,8 @@ export const dbStart = () => {
                     db.createObjectStore('stats');
                 }
                 // Definitive cleanup of misplaced stores
-                if (db.objectStoreNames.contains('menus')) {
-                    db.deleteObjectStore('menus');
+                if (db.objectStoreNames.contains('menus' as any)) {
+                    (db as any).deleteObjectStore('menus');
                 }
             },
             blocked() {
