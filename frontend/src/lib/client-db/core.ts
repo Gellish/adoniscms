@@ -26,32 +26,13 @@ export class ClientDB {
 
         this.initPromise = (async () => {
             try {
-                console.log('[ClientDB] Starting initialization...');
-
-                // 1. Open WITHOUT a version to detect the current state
-                const probe = await openDB(this.DB_NAME);
-                const currentVersion = probe.version;
-                const currentStores = Array.from(probe.objectStoreNames);
-                console.log(`[ClientDB] Detected version: ${currentVersion}, stores: ${currentStores}`);
-
-                // Read user-defined tables if _meta exists
-                let tables: TableMeta[] = [];
-                if (currentStores.includes('_meta')) {
-                    tables = await probe.getAll('_meta');
-                }
-                probe.close();
-
-                // 2. Determine if we need to upgrade
+                // Determine missing stores based on static analysis + system needs
                 const SYSTEM_STORES = ['_meta', '_syncQueue', 'superadmin', 'menus'];
-                const allNeededStores = [...SYSTEM_STORES, ...tables.map(t => t.name)];
-                const missingStores = allNeededStores.filter(s => !currentStores.includes(s));
-                const needsUpgrade = missingStores.length > 0;
 
-                const targetVersion = needsUpgrade ? currentVersion + 1 : currentVersion;
-                console.log(`[ClientDB] Missing stores: [${missingStores}], target version: ${targetVersion}`);
-
-                // 3. Open at the correct version
-                const db = await openDB(this.DB_NAME, targetVersion, {
+                // We'll use a hardcoded version for system stores, then increment if tables are added
+                // For now, let's keep it simple: try opening, and if upgrade is needed, let 'idb' handle it.
+                // VERSION 5: Unified with menus and system cleanup
+                const db = await openDB(this.DB_NAME, 5, {
                     upgrade(db) {
                         if (!db.objectStoreNames.contains('_meta')) db.createObjectStore('_meta', { keyPath: 'name' });
                         if (!db.objectStoreNames.contains('_syncQueue')) {
@@ -60,33 +41,19 @@ export class ClientDB {
                         }
                         if (!db.objectStoreNames.contains('superadmin')) db.createObjectStore('superadmin', { keyPath: 'id' });
                         if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
-
-                        tables.forEach(table => {
-                            if (!db.objectStoreNames.contains(table.name)) {
-                                console.log(`[ClientDB] Creating user table: ${table.name}`);
-                                const store = db.createObjectStore(table.name, { keyPath: table.keyPath || 'id' });
-                                if (table.indices) {
-                                    table.indices.forEach(idx => store.createIndex(idx, idx));
-                                }
-                            }
-                        });
                     },
                     blocked() {
-                        console.warn('[ClientDB] Upgrade blocked by another tab.');
-                        alert('Database upgrade blocked. Please close other tabs of this app.');
+                        console.warn('[ClientDB] Upgrade blocked. Closing this tab might help.');
                     }
                 });
 
                 db.onversionchange = () => {
-                    console.log('[ClientDB] Version change detected. Closing connection...');
                     db.close();
                     this.initPromise = null;
+                    if (typeof window !== 'undefined') window.location.reload();
                 };
 
-                // 4. Seed system data
                 await this.seedSystemData(db);
-
-                console.log('[ClientDB] Initialized successfully.');
                 return db;
             } catch (error) {
                 console.error('[ClientDB] Initialization failed:', error);

@@ -4,6 +4,7 @@
     import { goto } from "$app/navigation";
     import { adminState } from "$lib/adminState.svelte";
     import { browser } from "$app/environment";
+    import { page } from "$app/state";
 
     let { children } = $props<{ children: any }>();
     const auth = useAuth();
@@ -34,19 +35,39 @@
         </div>
 
         <nav>
-            <a href="/admin" class="nav-item">
+            <a
+                href="/admin"
+                class="nav-item"
+                class:active={page.url.pathname === "/admin"}
+            >
                 <span>Dashboard</span>
             </a>
-            <a href="/admin/posts" class="nav-item">
+            <a
+                href="/admin/posts"
+                class="nav-item"
+                class:active={page.url.pathname.startsWith("/admin/posts")}
+            >
                 <span>Posts</span>
             </a>
-            <a href="/admin/users" class="nav-item">
+            <a
+                href="/admin/users"
+                class="nav-item"
+                class:active={page.url.pathname.startsWith("/admin/users")}
+            >
                 <span>Users</span>
             </a>
-            <a href="/admin/menus" class="nav-item">
+            <a
+                href="/admin/menus"
+                class="nav-item"
+                class:active={page.url.pathname.startsWith("/admin/menus")}
+            >
                 <span>Menus</span>
             </a>
-            <a href="/admin/database" class="nav-item">
+            <a
+                href="/admin/database"
+                class="nav-item"
+                class:active={page.url.pathname.startsWith("/admin/database")}
+            >
                 <span>Database Builder</span>
             </a>
             <div class="divider"></div>
@@ -123,6 +144,11 @@
     .nav-item:hover {
         background: #3d4648;
         color: white;
+    }
+    .nav-item.active {
+        background: #4a90e2;
+        color: white;
+        font-weight: bold;
     }
     .nav-item.secondary {
         margin-top: auto;

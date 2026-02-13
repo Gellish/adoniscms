@@ -48,7 +48,7 @@ export const dbStart = () => {
                 // Version 4: Cleanup (Moving menus to ClientDB)
                 if (oldVersion < 4) {
                     if (db.objectStoreNames.contains('menus')) {
-                        db.deleteObjectStore('menus');
+                        (db as any).deleteObjectStore('menus');
                     }
                 }
             },
@@ -59,9 +59,8 @@ export const dbStart = () => {
 
         dbPromise.then(db => {
             db.onversionchange = () => {
-                console.log('[PolyglotDB] Version change detected. Closing connection...');
                 db.close();
-                dbPromise = undefined as any;
+                if (typeof window !== 'undefined') window.location.reload();
             };
         });
     }
