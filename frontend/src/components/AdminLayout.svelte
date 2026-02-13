@@ -130,10 +130,9 @@
         background: #3d4648;
         color: white;
     }
-    .nav-item.active {
-        background: #4a90e2;
+    .nav-item:hover {
+        background: #3d4648;
         color: white;
-        font-weight: bold;
     }
     .nav-item.secondary {
         margin-top: auto;

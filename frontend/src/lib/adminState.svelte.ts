@@ -45,14 +45,24 @@ export const adminState = {
      */
     async loadAllLocal() {
         try {
+            // Use a Promise.race to ensure IDB doesn't block the app indefinitely
+            const idbRefPromise = dbStart();
+            const clientDBInitPromise = ClientDB.init();
+
             // 1. Silent Secondary Hydration from IndexedDB
             try {
-                const dbStats = await ClientDB.getStats();
+                // Timeout after 1s if IDB is stuck
+                const db = await Promise.race([
+                    clientDBInitPromise,
+                    new Promise((_, reject) => setTimeout(() => reject('timeout'), 1000))
+                ]) as any;
+
+                const dbStats = await db.get('stats', 'admin_stats');
                 if (dbStats && !stats) {
                     stats = dbStats;
                 }
             } catch (e) {
-                // ignore IDB errors, we have localStorage or will get API data
+                console.warn("[AdminState] IDB Stats load skipped", e);
             }
 
             const allPosts = await PostService.getLocalPostsMerged();
@@ -60,12 +70,18 @@ export const adminState = {
 
             // 1.5 Hydrate users from IDB
             try {
-                const dbRef = await dbStart();
+                const dbRef = await Promise.race([
+                    idbRefPromise,
+                    new Promise((_, reject) => setTimeout(() => reject('timeout'), 1000))
+                ]) as any;
+
                 const allUsers = await dbRef.getAll('auth');
                 if (users.length === 0 && allUsers.length > 0) {
                     users = allUsers;
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.warn("[AdminState] IDB Users load skipped", e);
+            }
 
             // 2. Initial Stats from local if none exists in cache
             if (!stats) {

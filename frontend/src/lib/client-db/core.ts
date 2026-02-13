@@ -21,16 +21,13 @@ export class ClientDB {
      * Initializes the database.
      * Checks meta store for existing table definitions and upgrades if necessary.
      */
-    static async init(): Promise<IDBPDatabase> {
+    static init(): Promise<IDBPDatabase> {
         if (this.initPromise) return this.initPromise;
 
         this.initPromise = (async () => {
             try {
-                // Determine missing stores based on static analysis + system needs
-                const SYSTEM_STORES = ['_meta', '_syncQueue', 'superadmin', 'menus'];
-
-                // Directly open version 6 to force resolution of any blocked version 5 probes
-                const db = await openDB(this.DB_NAME, 6, {
+                // Determine target version - we jump to 10 to clear all previous trial versions
+                const db = await openDB(this.DB_NAME, 10, {
                     upgrade(db) {
                         if (!db.objectStoreNames.contains('_meta')) db.createObjectStore('_meta', { keyPath: 'name' });
                         if (!db.objectStoreNames.contains('_syncQueue')) {
@@ -41,7 +38,7 @@ export class ClientDB {
                         if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
                     },
                     blocked() {
-                        console.warn('[ClientDB] Upgrade blocked by another tab.');
+                        console.warn('[ClientDB] Upgrade blocked. Tab reload recommended.');
                     }
                 });
 

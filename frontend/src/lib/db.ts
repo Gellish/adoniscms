@@ -28,40 +28,36 @@ let dbPromise: Promise<IDBPDatabase<PolyglotDB>>;
 
 export const dbStart = () => {
     if (!dbPromise) {
-        dbPromise = openDB<PolyglotDB>(DB_NAME, DB_VERSION, {
+        // Jump to version 10 to clear trial version conflicts
+        dbPromise = openDB<PolyglotDB>(DB_NAME, 10, {
             upgrade(db, oldVersion) {
-                // Version 1: Initial setup
                 if (oldVersion < 1) {
                     const eventStore = db.createObjectStore('events', { keyPath: 'eventId' });
                     eventStore.createIndex('by-aggregate', ['aggregateType', 'aggregateId']);
                     db.createObjectStore('outbox', { keyPath: 'eventId' });
                     db.createObjectStore('auth');
                 }
-
-                // Version 2: Added stats store
-                if (oldVersion < 2) {
-                    if (!db.objectStoreNames.contains('stats')) {
-                        db.createObjectStore('stats');
-                    }
+                if (!db.objectStoreNames.contains('stats')) {
+                    db.createObjectStore('stats');
                 }
-
-                // Version 4: Cleanup (Moving menus to ClientDB)
-                if (oldVersion < 4) {
-                    if (db.objectStoreNames.contains('menus')) {
-                        (db as any).deleteObjectStore('menus');
-                    }
+                // Definitive cleanup of misplaced stores
+                if (db.objectStoreNames.contains('menus')) {
+                    db.deleteObjectStore('menus');
                 }
             },
             blocked() {
-                console.warn('[PolyglotDB] Upgrade blocked by another tab.');
+                console.warn('[PolyglotDB] Upgrade blocked.');
             }
         });
 
         dbPromise.then(db => {
             db.onversionchange = () => {
                 db.close();
-                if (typeof window !== 'undefined') window.location.reload();
+                dbPromise = null as any;
             };
+        }).catch(err => {
+            console.error('[PolyglotDB] Open failed:', err);
+            dbPromise = null as any;
         });
     }
     return dbPromise;
