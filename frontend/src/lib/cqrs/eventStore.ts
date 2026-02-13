@@ -1,6 +1,6 @@
-import type { Event, EventInput } from './types.js';
-import { uuidv4 } from './uuid.js';
-import { ClientDB } from '../db.js';
+import type { Event, EventInput } from '$lib/cqrs/types.js';
+import { uuidv4 } from '$lib/cqrs/uuid.js';
+import { ClientDB } from '$lib/db.js';
 
 export class EventStore {
 

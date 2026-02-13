@@ -1,10 +1,10 @@
 <script lang="ts">
     import type { FieldSchema } from "$lib/types";
-    import InputInterface from "./interfaces/InputInterface.svelte";
-    import TextareaInterface from "./interfaces/TextareaInterface.svelte";
-    import SelectInterface from "./interfaces/SelectInterface.svelte";
-    import BooleanInterface from "./interfaces/BooleanInterface.svelte";
-    import RichTextInterface from "./interfaces/RichTextInterface.svelte";
+    import InputInterface from "$ui/interfaces/InputInterface.svelte";
+    import TextareaInterface from "$ui/interfaces/TextareaInterface.svelte";
+    import SelectInterface from "$ui/interfaces/SelectInterface.svelte";
+    import BooleanInterface from "$ui/interfaces/BooleanInterface.svelte";
+    import RichTextInterface from "$ui/interfaces/RichTextInterface.svelte";
 
     interface Props {
         field: FieldSchema;

@@ -1,4 +1,4 @@
-import { CacheService } from './cacheService';
+import { CacheService } from '$lib/cacheService';
 
 // Function to prefetch data for a URL
 export async function prefetch(url: string) {

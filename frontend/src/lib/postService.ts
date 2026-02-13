@@ -1,8 +1,8 @@
 import { browser } from '$app/environment';
-import { EventStore } from './cqrs/eventStore.js';
-import { PostProjection } from './cqrs/projections.js';
-import type { Post } from './types.js';
-import { getLocalPosts } from './content.js';
+import { EventStore } from '$lib/cqrs/eventStore.js';
+import { PostProjection } from '$lib/cqrs/projections.js';
+import type { Post } from '$lib/types.js';
+import { getLocalPosts } from '$lib/content.js';
 
 export const PostService = {
 
@@ -151,7 +151,7 @@ export const PostService = {
 };
 
 // Helper: Scan IndexedDB for post events (via ClientDB)
-import { ClientDB } from './db.js';
+import { ClientDB } from '$lib/db.js';
 
 async function getAllLocalPostEvents() {
     if (!browser) return [];

@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { CacheService } from './cacheService';
+import { CacheService } from '$lib/cacheService';
 
 export function setupCacheInterceptor() {
     if (!browser) return;

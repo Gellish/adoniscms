@@ -1,6 +1,6 @@
 import { marked } from 'marked';
 import jsyaml from 'js-yaml';
-import type { Post } from './types.js';
+import type { Post } from '$lib/types.js';
 
 const markdownFiles = import.meta.glob('/src/content/*.md', { query: '?raw', import: 'default', eager: true });
 

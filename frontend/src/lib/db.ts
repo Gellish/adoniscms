@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Event } from './cqrs/types';
+import type { Event } from '$lib/cqrs/types';
 
 interface PolyglotDB extends DBSchema {
     events: {

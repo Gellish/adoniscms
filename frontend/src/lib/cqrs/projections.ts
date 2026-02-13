@@ -1,4 +1,4 @@
-import type { Event } from './types.js';
+import type { Event } from '$lib/cqrs/types.js';
 
 /**
  * Base Projection class

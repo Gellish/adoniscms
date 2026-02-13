@@ -1,5 +1,5 @@
-import { EventStore } from './eventStore.js';
-import type { Event } from './types.js';
+import { EventStore } from '$lib/cqrs/eventStore.js';
+import type { Event } from '$lib/cqrs/types.js';
 
 const SYNC_INTERVAL = 5000; // 5 seconds
 

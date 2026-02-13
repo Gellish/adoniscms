@@ -1,6 +1,6 @@
 
 // State using Svelte 5 Runes
-import { ClientDB } from './db.js';
+import { ClientDB } from '$lib/db.js';
 
 interface User {
     id: number;

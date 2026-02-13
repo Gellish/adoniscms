@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Menu, MenuItem as MenuItemType } from "$lib/types";
-    import MenuItem from "./MenuItem.svelte";
+    import MenuItem from "$ui/MenuItem.svelte";
 
     let { menu = $bindable() } = $props<{ menu: Menu }>();
 

@@ -3,8 +3,8 @@
  * Manages the offline sync queue and conflict resolution.
  */
 
-import { ClientDB } from '../core';
-import type { SyncOperation, SyncAdapter } from './adapters';
+import { ClientDB } from '$lib/client-db/core';
+import type { SyncOperation, SyncAdapter } from '$lib/client-db/sync/adapters';
 
 export class SyncEngine {
     private static isSyncing = false;

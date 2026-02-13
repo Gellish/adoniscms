@@ -1,5 +1,5 @@
-import { ClientDB, dbStart } from './db.js';
-import { PostService } from './postService.js';
+import { ClientDB, dbStart } from '$lib/db.js';
+import { PostService } from '$lib/postService.js';
 import { browser } from '$app/environment';
 
 interface AdminStats {

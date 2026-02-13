@@ -1,7 +1,7 @@
 <script lang="ts">
     import type { MenuItem as MenuItemType } from "$lib/types";
     import { createEventDispatcher } from "svelte";
-    import MenuItem from "./MenuItem.svelte";
+    import MenuItem from "$ui/MenuItem.svelte";
 
     let {
         item = $bindable(),
