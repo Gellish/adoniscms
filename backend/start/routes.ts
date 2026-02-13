@@ -39,6 +39,7 @@ router.group(() => {
     // Admin Routes
     router.group(() => {
         router.get('/stats', [StatsController, 'index'])
+
     }).prefix('admin')
 
     // Event Routes
