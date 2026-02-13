@@ -8,23 +8,18 @@
     let { children } = $props<{ children: any }>();
     const auth = useAuth();
 
-    // Trigger fast local load as early as possible
-    if (browser) {
-        adminState.loadAllLocal();
-    }
+    // Fast hydration from localStorage (sync call)
+    // Removed top-level loadAllLocal to prevent initialization hangs
 
-    onMount(async () => {
-        // Fast local load (safeguard)
-        await adminState.loadAllLocal();
-        // Background API refresh
-        adminState.refreshFromAPI();
-        // Start real-time polling
-        adminState.startPolling();
+    onMount(() => {
+        // Fast local load (non-blocking)
+        adminState.loadAllLocal().then(() => {
+            // Background API refresh after local data is ready
+            adminState.refreshFromAPI();
+            // Start real-time polling
+            adminState.startPolling();
+        });
     });
-
-    function navigateTo(path: string) {
-        goto(path);
-    }
 
     function handleLogout() {
         auth.logout();
@@ -39,28 +34,25 @@
         </div>
 
         <nav>
-            <button onclick={() => navigateTo("/admin")} class="nav-item">
+            <a href="/admin" class="nav-item">
                 <span>Dashboard</span>
-            </button>
-            <button onclick={() => navigateTo("/admin/posts")} class="nav-item">
+            </a>
+            <a href="/admin/posts" class="nav-item">
                 <span>Posts</span>
-            </button>
-            <button onclick={() => navigateTo("/admin/users")} class="nav-item">
+            </a>
+            <a href="/admin/users" class="nav-item">
                 <span>Users</span>
-            </button>
-            <button onclick={() => navigateTo("/admin/menus")} class="nav-item">
+            </a>
+            <a href="/admin/menus" class="nav-item">
                 <span>Menus</span>
-            </button>
-            <button
-                onclick={() => navigateTo("/admin/database")}
-                class="nav-item"
-            >
+            </a>
+            <a href="/admin/database" class="nav-item">
                 <span>Database Builder</span>
-            </button>
+            </a>
             <div class="divider"></div>
-            <button onclick={() => navigateTo("/")} class="nav-item secondary">
+            <a href="/" class="nav-item secondary">
                 <span>Public Site</span>
-            </button>
+            </a>
         </nav>
     </aside>
 
@@ -116,6 +108,8 @@
         gap: 0.5rem;
     }
     .nav-item {
+        display: block;
+        text-decoration: none;
         background: none;
         border: none;
         color: #dfe6e9;

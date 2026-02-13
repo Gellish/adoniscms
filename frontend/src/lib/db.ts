@@ -52,6 +52,17 @@ export const dbStart = () => {
                     }
                 }
             },
+            blocked() {
+                console.warn('[PolyglotDB] Upgrade blocked by another tab.');
+            }
+        });
+
+        dbPromise.then(db => {
+            db.onversionchange = () => {
+                console.log('[PolyglotDB] Version change detected. Closing connection...');
+                db.close();
+                dbPromise = undefined as any;
+            };
         });
     }
     return dbPromise;

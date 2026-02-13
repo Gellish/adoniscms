@@ -73,8 +73,15 @@ export class ClientDB {
                     },
                     blocked() {
                         console.warn('[ClientDB] Upgrade blocked by another tab.');
+                        alert('Database upgrade blocked. Please close other tabs of this app.');
                     }
                 });
+
+                db.onversionchange = () => {
+                    console.log('[ClientDB] Version change detected. Closing connection...');
+                    db.close();
+                    this.initPromise = null;
+                };
 
                 // 4. Seed system data
                 await this.seedSystemData(db);
