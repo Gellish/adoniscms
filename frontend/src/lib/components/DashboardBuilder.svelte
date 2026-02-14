@@ -5,6 +5,7 @@
     import { adminState } from "$lib/adminState.svelte";
     import WidgetTable from "$lib/components/dashboard/WidgetTable.svelte";
     import UserProfile from "$lib/components/dashboard/UserProfile.svelte";
+    import WidgetHeader from "$lib/components/dashboard/WidgetHeader.svelte";
 
     let { slug = "default" } = $props<{ slug?: string }>();
 
@@ -15,7 +16,8 @@
         | "activity"
         | "table"
         | "title"
-        | "profile";
+        | "profile"
+        | "header";
 
     interface Widget {
         id: string;
@@ -130,6 +132,14 @@
             icon: "👤",
             description: "Display current user and logout button.",
             defaultCols: 3,
+            defaultRows: 1,
+        },
+        {
+            type: "header",
+            label: "Slim Header",
+            icon: "👤",
+            description: "A minimalist header with email and logout button.",
+            defaultCols: 12,
             defaultRows: 1,
         },
     ];
@@ -582,12 +592,23 @@
                         oncontextmenu={(e) => handleContextMenu(e, widget.id)}
                         role="region"
                         aria-label="{widget.title} widget"
-                        class:bg-white={widget.type !== "title"}
-                        class:border={widget.type !== "title"}
-                        class:border-slate-200={widget.type !== "title"}
-                        class:shadow-sm={widget.type !== "title"}
-                        class:hover:shadow-xl={widget.type !== "title"}
-                        class:overflow-hidden={widget.type !== "title"}
+                        class:bg-white={widget.type !== "title" &&
+                            widget.type !== "header"}
+                        class:border={widget.type !== "title" &&
+                            widget.type !== "header"}
+                        class:border-dashed={widget.type === "header"}
+                        class:border-indigo-300={widget.type === "header"}
+                        class:border-opacity-0={widget.type === "header"}
+                        class:group-hover:border-opacity-100={widget.type ===
+                            "header"}
+                        class:border-slate-200={widget.type !== "title" &&
+                            widget.type !== "header"}
+                        class:shadow-sm={widget.type !== "title" &&
+                            widget.type !== "header"}
+                        class:hover:shadow-xl={widget.type !== "title" &&
+                            widget.type !== "header"}
+                        class:overflow-hidden={widget.type !== "title" &&
+                            widget.type !== "header"}
                         style="grid-column: {widget.x +
                             1} / span {widget.cols || 4}; grid-row: {widget.y +
                             1} / span {widget.rows || 1}; min-height: 60px;"
@@ -603,108 +624,81 @@
                             draggingWidget?.id !== widget.id}
                         transition:slide
                     >
-                        <div
-                            class="shrink-0 flex flex-col relative group/content"
-                            class:px-4={widget.type !== "title"}
-                            class:pt-4={widget.type !== "title"}
-                            class:pb-2={widget.type !== "title"}
-                            class:flex-1={widget.type === "title"}
-                            class:min-h-0={widget.type === "title"}
-                            class:border-b={widget.type !== "title"}
-                            class:border-slate-100={widget.type !== "title"}
-                            class:justify-center={widget.type === "title"}
-                            class:bg-slate-50={widget.type !== "title"}
-                        >
-                            <!-- Drag Handle (Hover only) -->
+                        {#if widget.type !== "header"}
                             <div
-                                class="absolute top-2 left-2 p-1 bg-indigo-600 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-[70] flex items-center gap-1 shadow-lg"
-                                onmousedown={(e) => startDrag(e, widget)}
-                                role="button"
-                                tabindex="0"
-                                aria-label="Drag widget"
+                                class="shrink-0 flex flex-col relative group/content cursor-grab active:cursor-grabbing"
+                                onmousedown={(e) => {
+                                    if (
+                                        (e.target as HTMLElement).closest(
+                                            "input, button",
+                                        )
+                                    )
+                                        return;
+                                    startDrag(e, widget);
+                                }}
+                                class:px-4={widget.type !== "title"}
+                                class:pt-4={widget.type !== "title"}
+                                class:pb-2={widget.type !== "title"}
+                                class:flex-1={widget.type === "title"}
+                                class:min-h-0={widget.type === "title"}
+                                class:border-b={widget.type !== "title"}
+                                class:border-slate-100={widget.type !== "title"}
+                                class:justify-center={widget.type === "title"}
+                                class:bg-slate-50={widget.type !== "title"}
                             >
-                                <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="3"
-                                    stroke-linecap="round"
-                                >
-                                    <circle cx="9" cy="5" r="1.5" /><circle
-                                        cx="9"
-                                        cy="12"
-                                        r="1.5"
-                                    /><circle cx="9" cy="19" r="1.5" /><circle
-                                        cx="15"
-                                        cy="5"
-                                        r="1.5"
-                                    /><circle cx="15" cy="12" r="1.5" /><circle
-                                        cx="15"
-                                        cy="19"
-                                        r="1.5"
-                                    />
-                                </svg>
                                 {#if widget.type === "title"}
-                                    <span
-                                        class="text-[8px] font-black uppercase tracking-tighter pr-1"
-                                        >Move</span
-                                    >
+                                    <div class="px-4 py-2">
+                                        <input
+                                            type="text"
+                                            bind:value={widget.title}
+                                            class="w-full bg-transparent border-none outline-none text-2xl font-black text-slate-900 uppercase tracking-tighter cursor-text focus:ring-2 focus:ring-indigo-500/20 rounded-lg py-1 px-2 mb-0"
+                                            spellcheck="false"
+                                            onblur={() => saveDashboard()}
+                                            onkeydown={(e) =>
+                                                e.key === "Enter" &&
+                                                (
+                                                    e.target as HTMLInputElement
+                                                ).blur()}
+                                        />
+                                    </div>
+                                {:else}
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
+                                            >{widget.title}</span
+                                        >
+                                    </div>
                                 {/if}
-                            </div>
 
-                            {#if widget.type === "title"}
-                                <div class="px-4 py-2">
-                                    <input
-                                        type="text"
-                                        bind:value={widget.title}
-                                        class="w-full bg-transparent border-none outline-none text-2xl font-black text-slate-900 uppercase tracking-tighter cursor-text focus:ring-2 focus:ring-indigo-500/20 rounded-lg py-1 px-2 mb-0"
-                                        spellcheck="false"
-                                        onblur={() => saveDashboard()}
-                                        onkeydown={(e) =>
-                                            e.key === "Enter" &&
-                                            (
-                                                e.target as HTMLInputElement
-                                            ).blur()}
-                                    />
-                                </div>
-                            {:else}
-                                <div class="flex items-center gap-2">
-                                    <span
-                                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
-                                        >{widget.title}</span
-                                    >
-                                </div>
-                            {/if}
-
-                            <!-- Remove Button (Top-right) -->
-                            <button
-                                onclick={() => removeWidget(widget.id)}
-                                class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors z-[60] opacity-0 group-hover:opacity-100"
-                                class:!opacity-100={widget.type === "title" &&
-                                    isDragging &&
-                                    draggingWidget?.id === widget.id}
-                                title="Remove component"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
+                                <!-- Remove Button (Top-right) -->
+                                <button
+                                    onclick={() => removeWidget(widget.id)}
+                                    class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors z-[60] opacity-0 group-hover:opacity-100"
+                                    class:!opacity-100={widget.type ===
+                                        "title" &&
+                                        isDragging &&
+                                        draggingWidget?.id === widget.id}
+                                    title="Remove component"
                                 >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
+                            </div>
+                        {/if}
 
-                        {#if widget.type !== "title"}
+                        {#if widget.type !== "title" && widget.type !== "header"}
                             <div class="flex-1 min-h-0 flex flex-col px-4 pb-4">
                                 {#if widget.type === "stats"}
                                     <div
@@ -800,6 +794,44 @@
                                 {:else if widget.type === "profile"}
                                     <div class="flex-1 min-h-0 flex flex-col">
                                         <UserProfile />
+                                    </div>
+                                {:else if widget.type === "header"}
+                                    <div
+                                        class="flex-1 min-h-[60px] flex flex-col relative group/header cursor-grab active:cursor-grabbing"
+                                        onmousedown={(e) => {
+                                            if (
+                                                (
+                                                    e.target as HTMLElement
+                                                ).closest("button")
+                                            )
+                                                return;
+                                            startDrag(e, widget);
+                                        }}
+                                    >
+                                        <WidgetHeader />
+
+                                        <!-- Remove Button for Naked Header (always on right) -->
+                                        <button
+                                            onclick={() =>
+                                                removeWidget(widget.id)}
+                                            class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors z-[60] opacity-0 group-hover:opacity-100"
+                                            title="Remove component"
+                                        >
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                class="h-4 w-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M6 18L18 6M6 6l12 12"
+                                                />
+                                            </svg>
+                                        </button>
                                     </div>
                                 {/if}
                             </div>

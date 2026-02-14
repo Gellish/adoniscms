@@ -143,7 +143,17 @@
     let isDashboard = $derived(
         page.url.pathname.includes("/admin/dashboard") ||
             page.url.pathname === "/admin" ||
-            page.url.pathname === "/admin/",
+            page.url.pathname === "/admin/" ||
+            (page.url.pathname.startsWith("/admin/") &&
+                ![
+                    "posts",
+                    "users",
+                    "editor",
+                    "menus",
+                    "database",
+                    "post",
+                    "activity",
+                ].some((p) => page.url.pathname.startsWith(`/admin/${p}`))),
     );
 
     // Drag and Drop Logic
