@@ -8,11 +8,15 @@
         return Math.random().toString(36).substr(2, 9);
     }
 
-    function createNewItem(label = "New Item", url = "/"): MenuItemType {
+    function createNewItem(label = "New Item", url = ""): MenuItemType {
+        const slug = label
+            .toLowerCase()
+            .replace(/\s+/g, "-")
+            .replace(/[^\w-]/g, "");
         return {
             id: generateId(),
             label,
-            url,
+            url: url || `/admin/${slug}`,
             children: [],
             isOpen: true,
         };

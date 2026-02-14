@@ -15,117 +15,73 @@ export interface TableMeta {
 
 export class ClientDB {
     private static readonly DB_NAME = 'ClientDB';
+    private static dbInstance: IDBPDatabase | null = null;
     private static initPromise: Promise<IDBPDatabase> | null = null;
 
     /**
-     * Initializes the database.
-     * Checks meta store for existing table definitions and upgrades if necessary.
+     * CLEAN SLATE OPENER.
+     * Version 40 resets everything for the new builder.
      */
-    static init(): Promise<IDBPDatabase> {
-        if (this.initPromise) return this.initPromise;
+    static async init(): Promise<IDBPDatabase> {
+        if (this.dbInstance) return this.dbInstance;
 
-        this.initPromise = (async () => {
-            try {
-                // 1. Probe version using native API (which is non-blocking to the app thread)
-                const probeVersion = await new Promise<number>((resolve) => {
-                    const req = indexedDB.open(this.DB_NAME);
-                    req.onsuccess = (e: any) => {
-                        const db = e.target.result;
-                        const v = db.version;
-                        db.close();
-                        resolve(v);
-                    };
-                    req.onupgradeneeded = (e: any) => {
-                        e.target.transaction.abort();
-                        resolve(0);
-                    };
-                    req.onerror = () => resolve(0);
-                });
-
-                // 2. Determine target version (v10+ safety)
-                let targetVersion = Math.max(probeVersion, 9);
-                targetVersion++;
-
-                const db = await openDB(this.DB_NAME, targetVersion, {
-                    upgrade(db) {
-                        if (!db.objectStoreNames.contains('_meta')) db.createObjectStore('_meta', { keyPath: 'name' });
-                        if (!db.objectStoreNames.contains('_syncQueue')) {
-                            const s = db.createObjectStore('_syncQueue', { keyPath: 'id' });
-                            s.createIndex('by-synced', 'synced');
-                        }
-                        if (!db.objectStoreNames.contains('superadmin')) db.createObjectStore('superadmin', { keyPath: 'id' });
-                        if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
-                    },
-                    blocked() {
-                        console.warn('[ClientDB] Upgrade blocked. Close other tabs!');
-                    }
-                });
-
-                db.onversionchange = () => {
-                    db.close();
-                    this.initPromise = null;
-                };
-
-                await this.seedSystemData(db);
-                return db;
-            } catch (error) {
-                console.error('[ClientDB] Initialization failed:', error);
-                this.initPromise = null;
-                throw error;
+        this.dbInstance = await openDB(this.DB_NAME, 42, {
+            upgrade(db, oldVersion, newVersion, transaction) {
+                // Only create stores if they don't exist. DO NOT DELETE EXISTING DATA.
+                if (!db.objectStoreNames.contains('_meta')) db.createObjectStore('_meta', { keyPath: 'name' });
+                if (!db.objectStoreNames.contains('_syncQueue')) db.createObjectStore('_syncQueue', { keyPath: 'id' });
+                if (!db.objectStoreNames.contains('superadmin')) db.createObjectStore('superadmin', { keyPath: 'id' });
+                if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
+                if (!db.objectStoreNames.contains('dashboards')) db.createObjectStore('dashboards', { keyPath: 'id' });
             }
-        })();
+        });
 
-        return this.initPromise;
+        await this.seedSystemData(this.dbInstance);
+        await this.ensureDefaultMenus(this.dbInstance);
+        return this.dbInstance;
     }
 
-    /**
-     * Seeds default system data. Public so it can be called manually.
-     */
     static async seedSystemData(db: IDBPDatabase): Promise<void> {
         try {
-            // Seed menus
-            console.log('[ClientDB] Checking menus data...');
-            const txMenus = db.transaction('menus', 'readwrite');
-            const countMenus = await txMenus.store.count();
-            if (countMenus === 0) {
-                console.log('[ClientDB] Seeding default menus...');
-                await txMenus.store.put({
-                    id: "1",
-                    name: "Main Navigation",
-                    items: [
-                        { id: "1a", label: "Home", url: "/", children: [], isOpen: true },
-                        { id: "1b", label: "Blog", url: "/blog", isOpen: true, children: [] }
-                    ]
-                });
-                console.log('[ClientDB] Default menus seeded.');
-            } else {
-                console.log('[ClientDB] Menus already present.');
-            }
-            await txMenus.done;
-
-            // Seed superadmin
-            console.log('[ClientDB] Checking superadmin data...');
-            const txSuperadmin = db.transaction('superadmin', 'readwrite');
-            const storeSuperadmin = txSuperadmin.objectStore('superadmin');
-            const countSuperadmin = await storeSuperadmin.count();
-
-            if (countSuperadmin === 0) {
-                console.log('[ClientDB] Seeding default admin...');
+            const tx = db.transaction(['superadmin'], 'readwrite');
+            const store = tx.objectStore('superadmin');
+            const existing = await store.get('default-admin');
+            if (!existing) {
                 await store.put({
                     id: 'default-admin',
+                    fullName: 'Admin User',
                     email: 'admin@devcms.com',
-                    password: 'hash',
-                    role: 'superadmin',
-                    createdAt: Date.now()
+                    role: 'admin',
+                    joinedAt: new Date().toISOString()
                 });
-                console.log('[ClientDB] Seed complete.');
-            } else {
-                console.log('[ClientDB] System data already present.');
             }
             await tx.done;
-        } catch (e) {
-            console.error('[ClientDB] Seeding failed:', e);
-        }
+        } catch (e) { /* silent */ }
+    }
+
+    static async ensureDefaultMenus(db: IDBPDatabase): Promise<void> {
+        try {
+            const tx = db.transaction(['menus'], 'readwrite');
+            const count = await tx.objectStore('menus').count();
+            if (count === 0) {
+                // Seed defaults if totally empty
+                const defaults = [
+                    {
+                        id: crypto.randomUUID(),
+                        name: "Main Navigation",
+                        items: [
+                            { id: crypto.randomUUID(), label: "Dashboard", url: "/admin", children: [], isOpen: true },
+                            { id: crypto.randomUUID(), label: "Blog", url: "/admin/blog", children: [], isOpen: true },
+                            { id: crypto.randomUUID(), label: "Posts", url: "/admin/post", children: [], isOpen: true }
+                        ]
+                    }
+                ];
+                for (const menu of defaults) {
+                    await tx.objectStore('menus').put(menu);
+                }
+            }
+            await tx.done;
+        } catch (e) { console.warn("Failed to seed default menus", e); }
     }
 
     /**

@@ -17,18 +17,131 @@
     onMount(async () => {
         // Fast local load (safeguard)
         await adminState.loadAllLocal();
+
+        // Migration: Fix unclickable empty menus
+        if (adminState.menus.length > 0) {
+            let changed = false;
+            for (const menu of adminState.menus) {
+                if (!menu.items || menu.items.length === 0) {
+                    const slug = menu.name
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")
+                        .replace(/[^\w-]/g, "");
+                    menu.items = [
+                        {
+                            id: crypto.randomUUID(),
+                            label: menu.name,
+                            url: `/admin/${slug}`,
+                            children: [],
+                            isOpen: true,
+                        },
+                    ];
+                    changed = true;
+                }
+            }
+            if (changed) {
+                // Save back to DB
+                const db = await (
+                    await import("$lib/client-db/core")
+                ).ClientDB.init();
+                const tx = db.transaction("menus", "readwrite");
+                for (const menu of adminState.menus) {
+                    await tx.store.put($state.snapshot(menu));
+                }
+                await tx.done;
+            }
+        }
+
         // Background API refresh
         adminState.refreshFromAPI();
         // Start real-time polling
         adminState.startPolling();
     });
 
-    function navigateTo(path: string) {
-        goto(path);
-    }
-
     function handleLogout() {
         auth.logout();
+    }
+
+    let showNewMenuModal = $state(false);
+    let newMenuName = $state("");
+    let newMenuRoute = $state("");
+
+    async function handleCreateMenu() {
+        if (!newMenuName.trim()) return;
+
+        // If they provided a route, we can seed it or handle it
+        await adminState.createMenu(newMenuName, newMenuRoute);
+
+        newMenuName = "";
+        newMenuRoute = "";
+        showNewMenuModal = false;
+    }
+
+    // Context Menu Logic
+    let contextMenu = $state<{ x: number; y: number; menuId: string } | null>(
+        null,
+    );
+    let showEditMenuModal = $state(false);
+    let editMenuId = $state("");
+    let editMenuName = $state("");
+    let editMenuRoute = $state("");
+
+    function handleContextMenu(e: MouseEvent, menu: any) {
+        e.preventDefault();
+        contextMenu = {
+            x: e.clientX,
+            y: e.clientY,
+            menuId: menu.id,
+        };
+    }
+
+    function closeContextMenu() {
+        contextMenu = null;
+    }
+
+    async function handleDeleteMenu() {
+        if (contextMenu) {
+            if (confirm("Are you sure you want to delete this menu?")) {
+                await adminState.deleteMenu(contextMenu.menuId);
+            }
+            closeContextMenu();
+        }
+    }
+
+    function openEditModal() {
+        if (contextMenu) {
+            const menu = adminState.menus.find(
+                (m) => m.id === contextMenu!.menuId,
+            );
+            if (menu) {
+                editMenuId = menu.id;
+                editMenuName = menu.name;
+                // Assuming single item menu for now for route editing
+                editMenuRoute = menu.items[0]?.url || "";
+                showEditMenuModal = true;
+            }
+            closeContextMenu();
+        }
+    }
+
+    async function handleUpdateMenu() {
+        if (!editMenuName.trim()) return;
+        const menu = adminState.menus.find((m) => m.id === editMenuId);
+        if (menu) {
+            // Simple update for now, preserving children structure but updating label/url of first item
+            const updatedItems = [...menu.items];
+            if (updatedItems.length > 0) {
+                updatedItems[0].label = editMenuName;
+                updatedItems[0].url = editMenuRoute;
+            }
+            await adminState.updateMenu(editMenuId, editMenuName, updatedItems);
+            showEditMenuModal = false;
+        }
+    }
+
+    // Close context menu on global click
+    function onGlobalClick() {
+        closeContextMenu();
     }
 </script>
 
@@ -39,60 +152,74 @@
             <span class="name">Admin Panel</span>
         </div>
 
-        <nav>
-            <a
-                href="/admin"
-                class="nav-item"
-                class:active={page.url.pathname === "/admin"}
-            >
-                <span>Dashboard</span>
-            </a>
-            <a
-                href="/admin/posts"
-                class="nav-item"
-                class:active={page.url.pathname === "/admin/posts"}
-            >
-                <span>Posts</span>
-            </a>
-            <a
-                href="/admin/users"
-                class="nav-item"
-                class:active={page.url.pathname === "/admin/users"}
-            >
-                <span>Users</span>
-            </a>
-            <a
-                href="/admin/menus"
-                class="nav-item"
-                class:active={page.url.pathname === "/admin/menus"}
-            >
-                <span>Menus</span>
-            </a>
-            <a
-                href="/admin/database"
-                class="nav-item"
-                class:active={page.url.pathname === "/admin/database"}
-            >
-                <span>Database Builder</span>
-            </a>
-            <div class="divider"></div>
-            <a href="/" class="nav-item secondary">
-                <span>Public Site</span>
-            </a>
+        <nav class="nav-scroll py-4">
+            <!-- 100% Dynamic Sections Only -->
+            {#each adminState.menus as menu (menu.id)}
+                {#if menu.items.length === 1 && menu.items[0].label.toLowerCase() === menu.name.toLowerCase()}
+                    <a
+                        href={menu.items[0].url}
+                        class="nav-item"
+                        class:active={page.url.pathname === menu.items[0].url}
+                        oncontextmenu={(e) => handleContextMenu(e, menu)}
+                    >
+                        <span class="font-semibold">{menu.items[0].label}</span>
+                    </a>
+                {:else if menu.items.length > 0}
+                    <div class="nav-group mb-2">
+                        <div
+                            class="nav-item section-header group pointer-events-none"
+                            oncontextmenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                            }}
+                        >
+                            <span
+                                class="flex-1 font-bold text-slate-500 text-[0.65rem] uppercase tracking-widest"
+                                >{menu.name}</span
+                            >
+                        </div>
+                        <div class="sub-items">
+                            {#each menu.items as item}
+                                <a
+                                    href={item.url}
+                                    class="nav-item sub"
+                                    class:active={page.url.pathname ===
+                                        item.url}
+                                    oncontextmenu={(e) =>
+                                        handleContextMenu(e, menu)}
+                                >
+                                    <span>{item.label}</span>
+                                </a>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+            {/each}
+
+            <!-- THE RED CIRCLE BUTTON -->
+            <div class="px-4">
+                <button
+                    onclick={() => (showNewMenuModal = true)}
+                    class="add-nav-btn"
+                >
+                    + New Menu
+                </button>
+            </div>
+
+            <div class="mt-auto px-4 border-t border-slate-800 pt-4">
+                <a
+                    href="/admin/database"
+                    class="nav-item secondary text-xs opacity-50"
+                >
+                    <span>Database Builder</span>
+                </a>
+            </div>
         </nav>
     </aside>
 
     <div class="main-content">
         <header class="top-nav">
             <div class="user-info">
-                {#if adminState.isSyncing}
-                    <div
-                        class="flex items-center gap-2 text-xs text-gray-400 animate-pulse mr-4"
-                    >
-                        <div class="w-2 h-2 bg-primary-500 rounded-full"></div>
-                        Syncing...
-                    </div>
-                {/if}
                 <span>{auth.user?.fullName}</span>
                 <button onclick={handleLogout} class="logout-btn">Logout</button
                 >
@@ -103,6 +230,221 @@
             {@render children()}
         </main>
     </div>
+
+    {#if showNewMenuModal}
+        <div class="modal-overlay" onclick={() => (showNewMenuModal = false)}>
+            <div class="modal-content" onclick={(e) => e.stopPropagation()}>
+                <div class="modal-header">
+                    <div class="header-content">
+                        <div class="icon-badge">
+                            <span class="plus-icon">+</span>
+                        </div>
+                        <div class="title-group">
+                            <h3>Create New Menu</h3>
+                            <p>Build a new navigation structure</p>
+                        </div>
+                    </div>
+                    <button
+                        class="close-btn"
+                        onclick={() => (showNewMenuModal = false)}
+                        aria-label="Close modal"
+                        ><svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><line x1="18" y1="6" x2="6" y2="18"></line><line
+                                x1="6"
+                                y1="6"
+                                x2="18"
+                                y2="18"
+                            ></line></svg
+                        ></button
+                    >
+                </div>
+                <div class="modal-body">
+                    <div class="input-container mb-6">
+                        <label for="menu-name">MENU NAME</label>
+                        <input
+                            id="menu-name"
+                            type="text"
+                            bind:value={newMenuName}
+                            placeholder="e.g. Collections, Shop, Support..."
+                            onkeydown={(e) =>
+                                e.key === "Enter" && handleCreateMenu()}
+                            autofocus
+                        />
+                    </div>
+                    <div class="input-container">
+                        <label for="menu-route">ROUTE</label>
+                        <input
+                            id="menu-route"
+                            type="text"
+                            bind:value={newMenuRoute}
+                            placeholder="route"
+                            onkeydown={(e) =>
+                                e.key === "Enter" && handleCreateMenu()}
+                        />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        class="btn-cancel"
+                        onclick={() => (showNewMenuModal = false)}
+                        >Cancel</button
+                    >
+                    <button
+                        class="btn-create"
+                        onclick={handleCreateMenu}
+                        disabled={!newMenuName.trim()}
+                    >
+                        <span>Create Menu</span>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><polyline points="9 18 15 12 9 6"></polyline></svg
+                        >
+                    </button>
+                </div>
+            </div>
+        </div>
+    {/if}
+
+    <!-- Edit Menu Modal -->
+    {#if showEditMenuModal}
+        <div
+            class="modal-overlay"
+            onclick={() => (showEditMenuModal = false)}
+            role="presentation"
+        >
+            <div
+                class="modal-content"
+                onclick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+            >
+                <div class="modal-header">
+                    <div class="header-content">
+                        <div class="icon-badge">
+                            <span class="plus-icon">✎</span>
+                        </div>
+                        <div class="title-group">
+                            <h3>Edit Menu</h3>
+                            <p>Update menu details</p>
+                        </div>
+                    </div>
+                    <button
+                        class="close-btn"
+                        onclick={() => (showEditMenuModal = false)}
+                        aria-label="Close modal"
+                        ><svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><line x1="18" y1="6" x2="6" y2="18"></line><line
+                                x1="6"
+                                y1="6"
+                                x2="18"
+                                y2="18"
+                            ></line></svg
+                        ></button
+                    >
+                </div>
+                <div class="modal-body">
+                    <div class="input-container mb-6">
+                        <label for="edit-menu-name">MENU NAME</label>
+                        <input
+                            id="edit-menu-name"
+                            type="text"
+                            bind:value={editMenuName}
+                            onkeydown={(e) =>
+                                e.key === "Enter" && handleUpdateMenu()}
+                        />
+                    </div>
+                    <div class="input-container">
+                        <label for="edit-menu-route">ROUTE</label>
+                        <input
+                            id="edit-menu-route"
+                            type="text"
+                            bind:value={editMenuRoute}
+                            onkeydown={(e) =>
+                                e.key === "Enter" && handleUpdateMenu()}
+                        />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        class="btn-cancel"
+                        onclick={() => (showEditMenuModal = false)}
+                        >Cancel</button
+                    >
+                    <button
+                        class="btn-create"
+                        onclick={handleUpdateMenu}
+                        disabled={!editMenuName.trim()}
+                    >
+                        <span>Save Changes</span>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><polyline points="9 18 15 12 9 6"></polyline></svg
+                        >
+                    </button>
+                </div>
+            </div>
+        </div>
+    {/if}
+
+    <!-- API Context Menu -->
+    {#if contextMenu}
+        <div
+            class="context-menu"
+            style="top: {contextMenu.y}px; left: {contextMenu.x}px;"
+            role="menu"
+            tabindex="-1"
+        >
+            <button class="context-item" onclick={openEditModal}>
+                <span class="icon">✎</span>
+                Edit Menu
+            </button>
+            <div class="divider"></div>
+            <button class="context-item delete" onclick={handleDeleteMenu}>
+                <span class="icon">🗑️</span>
+                Delete Menu
+            </button>
+        </div>
+        <!-- Global click listener to close context menu -->
+        <div
+            class="fixed inset-0 z-[9998]"
+            onclick={closeContextMenu}
+            role="presentation"
+        ></div>
+    {/if}
 </div>
 
 <style>
@@ -131,7 +473,16 @@
         padding: 1rem;
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        gap: 0.25rem;
+        flex: 1;
+        overflow-y: auto;
+    }
+    .nav-scroll::-webkit-scrollbar {
+        width: 4px;
+    }
+    .nav-scroll::-webkit-scrollbar-thumb {
+        background: #4a5568;
+        border-radius: 10px;
     }
     .nav-item {
         background: none;
@@ -148,22 +499,34 @@
     }
     .nav-item:hover,
     .nav-item.active {
-        background: #3d4648;
+        background: #6c5ce7;
         color: white;
     }
     .nav-item.secondary {
         margin-top: auto;
         color: #b2bec3;
     }
-    .divider {
-        height: 1px;
-        background: #3d4648;
+    .add-nav-btn {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px dashed #6c5ce7;
+        color: #a29bfe;
+        font-weight: 700;
+        font-size: 0.8rem;
+        border-radius: 8px;
+        transition: all 0.2s;
         margin: 1rem 0;
+        background: transparent;
+    }
+    .add-nav-btn:hover {
+        background: rgba(108, 92, 231, 0.1);
+        color: white;
     }
     .main-content {
         flex: 1;
         display: flex;
         flex-direction: column;
+        background: white;
     }
     .top-nav {
         height: 60px;
@@ -189,5 +552,241 @@
     .page-body {
         padding: 2rem;
         overflow-y: auto;
+    }
+
+    /* Beautiful Modal Styles - Refined to match screenshot */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        animation: fadeIn 0.3s ease-out;
+    }
+    .modal-content {
+        background: white;
+        width: 100%;
+        max-width: 480px;
+        border-radius: 32px;
+        box-shadow:
+            0 25px 50px -12px rgba(0, 0, 0, 0.25),
+            0 0 0 1px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+        animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .modal-header {
+        padding: 2rem 2rem 1.5rem;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+    .header-content {
+        display: flex;
+        gap: 1.25rem;
+    }
+    .icon-badge {
+        width: 48px;
+        height: 48px;
+        background: #f5f3ff;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .plus-icon {
+        color: #6c5ce7;
+        font-size: 1.5rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .title-group h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #1e293b;
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+    }
+    .title-group p {
+        margin: 0.25rem 0 0;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+    .close-btn {
+        background: #f1f5f9;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .close-btn:hover {
+        background: #e2e8f0;
+        color: #475569;
+        transform: rotate(90deg);
+    }
+    .modal-body {
+        padding: 0 2rem 2rem;
+    }
+    .input-container {
+        position: relative;
+    }
+    .input-container label {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+    }
+    .input-container input {
+        width: 100%;
+        padding: 1.25rem 1.25rem;
+        background: #f8fafc;
+        border: 2px solid #f1f5f9;
+        border-radius: 16px;
+        font-size: 1rem;
+        font-weight: 500;
+        color: #1e293b;
+        outline: none;
+        transition: all 0.2s;
+        position: relative;
+        z-index: 1;
+    }
+    .input-container input::placeholder {
+        color: #94a3b8;
+        opacity: 0.7;
+    }
+    .input-container input:focus {
+        background: white;
+        border-color: #6c5ce7;
+        box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.1);
+    }
+    .modal-footer {
+        padding: 1.5rem 2rem;
+        background: #f8fafc;
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        border-top: 1px solid #f1f5f9;
+    }
+    .btn-cancel {
+        padding: 0.875rem 2rem;
+        border-radius: 16px;
+        font-weight: 700;
+        color: #475569;
+        background: white;
+        border: 2px solid #f1f5f9;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-cancel:hover {
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+    }
+    .btn-create {
+        padding: 0.875rem 2rem;
+        border-radius: 16px;
+        font-weight: 700;
+        color: white;
+        background: #bdbdbd;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s;
+    }
+    .btn-create:hover:not(:disabled) {
+        transform: translateY(-2px);
+        background: #acacac;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    .btn-create:active:not(:disabled) {
+        transform: translateY(0);
+    }
+    .btn-create:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    @keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .context-menu {
+        position: fixed;
+        background: white;
+        border-radius: 12px;
+        box-shadow:
+            0 10px 25px -5px rgba(0, 0, 0, 0.1),
+            0 0 0 1px rgba(0, 0, 0, 0.05);
+        padding: 6px;
+        min-width: 180px;
+        z-index: 9999;
+        animation: fadeIn 0.1s ease-out;
+    }
+    .context-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 8px 12px;
+        border: none;
+        background: transparent;
+        color: #1e293b;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.15s;
+    }
+    .context-item:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+    .context-item.delete {
+        color: #ef4444;
+    }
+    .context-item.delete:hover {
+        background: #fef2f2;
+        color: #dc2626;
+    }
+    .context-item .icon {
+        font-size: 1rem;
+        opacity: 0.7;
+    }
+    .divider {
+        height: 1px;
+        background: #f1f5f9;
+        margin: 4px 0;
     }
 </style>

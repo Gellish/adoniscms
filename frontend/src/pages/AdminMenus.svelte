@@ -39,10 +39,13 @@
 
     onMount(async () => {
         await loadMenus();
+        // Auto-select from URL
+        const id = new URLSearchParams(window.location.search).get("id");
+        if (id) activeMenuId = id;
     });
 
     async function loadMenus() {
-        isLoading = true;
+        // We now rely on adminState mostly, but can refresh here if needed
         try {
             const db = await ClientDB.init();
             const stored = await db.getAll("menus");
@@ -52,7 +55,6 @@
                 menus = DEFAULT_MENUS;
             }
         } catch (e) {
-            console.error("Failed to load menus", e);
             menus = DEFAULT_MENUS;
         } finally {
             isLoading = false;
@@ -79,10 +81,9 @@
                 await tx.store.put($state.snapshot(menu));
             }
             await tx.done;
-            alert("Menus saved to shared ClientDB!");
+            alert("Navigation updated!");
         } catch (e) {
             console.error("Save failed", e);
-            alert("Failed to save menus");
         }
     }
 
@@ -157,66 +158,39 @@
                     ></div>
                 </button>
             {/each}
-
-            <button
-                onclick={createNewMenu}
-                class="w-full text-left px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all font-medium flex items-center gap-2 mt-4"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="w-5 h-5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                >
-                    <path
-                        fill-rule="evenodd"
-                        d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-                        clip-rule="evenodd"
-                    />
-                </svg>
-                New Menu
-            </button>
         </div>
 
         <!-- Main Builder -->
         <div class="md:col-span-3">
-            {#if isLoading}
-                <div
-                    class="bg-white rounded-2xl p-12 text-center border border-slate-200"
-                >
-                    <p class="text-slate-400 font-bold animate-pulse">
-                        Initializing Menu Engine...
-                    </p>
-                </div>
-            {:else if menus.length > 0 && activeMenu}
+            {#if activeMenu}
                 <div
                     class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
                 >
                     <div
                         class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between"
                     >
-                        <div class="flex items-center gap-3">
-                            <h2 class="font-bold text-slate-800">
-                                {activeMenu.name}
-                            </h2>
-                            <span
-                                class="px-2 py-0.5 bg-slate-200 text-slate-600 rounded text-[10px] font-bold uppercase tracking-wider"
-                                >Active</span
-                            >
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input
-                                type="text"
-                                bind:value={menus[activeMenuIndex].name}
-                                class="text-sm px-3 py-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                            />
-                        </div>
+                        <h2 class="font-bold text-slate-800">
+                            {activeMenu.name}
+                        </h2>
+                        <input
+                            type="text"
+                            bind:value={menus[activeMenuIndex].name}
+                            class="text-sm px-3 py-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
                     </div>
 
                     <div class="p-6">
                         {#key activeMenuId}
                             <MenuBuilder bind:menu={menus[activeMenuIndex]} />
                         {/key}
+                        <div class="mt-8 flex justify-end">
+                            <button
+                                onclick={saveMenus}
+                                class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
                     </div>
                 </div>
             {:else}
@@ -224,40 +198,10 @@
                     class="bg-white rounded-2xl p-12 text-center border border-slate-200"
                 >
                     <p class="text-slate-400">
-                        No menus found. Create one to get started.
+                        Click '+ New Menu' in the sidebar to start building.
                     </p>
                 </div>
             {/if}
-
-            <div
-                class="mt-8 p-6 bg-amber-50 rounded-2xl border border-amber-100 flex gap-4 items-start"
-            >
-                <div class="p-2 bg-amber-100 text-amber-600 rounded-lg">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="w-6 h-6"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                    </svg>
-                </div>
-                <div>
-                    <h4 class="font-bold text-amber-900">Developer Note</h4>
-                    <p class="text-amber-700 text-sm mt-1">
-                        This builder uses a recursive state management system.
-                        You can move items, nest them, and edit URLs in
-                        real-time. Don't forget to push your changes to sync
-                        with the backend.
-                    </p>
-                </div>
-            </div>
         </div>
     </div>
 </div>

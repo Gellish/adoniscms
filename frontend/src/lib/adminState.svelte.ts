@@ -14,6 +14,9 @@ interface AdminStats {
 let stats = $state<AdminStats | null>(null);
 let posts = $state<any[]>([]);
 let users = $state<any[]>([]);
+let tables = $state<any[]>([]);
+let menus = $state<any[]>([]);
+let sidebarMenu = $state<any>(null);
 let isOffline = $state(false);
 let lastFetched = $state<number>(0);
 let isSyncing = $state(false);
@@ -34,6 +37,52 @@ export const adminState = {
     get stats() { return stats },
     get posts() { return posts },
     get users() { return users },
+    get tables() { return tables },
+    get menus() { return menus; },
+    get sidebarMenu() { return sidebarMenu },
+    async createMenu(name: string, firstItemRoute: string = "") {
+        const db = await ClientDB.init();
+        const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+        const finalRoute = firstItemRoute || `/admin/${slug}`;
+
+        const newMenu = {
+            id: crypto.randomUUID(),
+            name,
+            items: [
+                {
+                    id: crypto.randomUUID(),
+                    label: name,
+                    url: finalRoute.startsWith('/') ? finalRoute : `/admin/${finalRoute}`,
+                    children: [],
+                    isOpen: true
+                }
+            ]
+        };
+        await db.put('menus', newMenu);
+        // Refresh local state
+        const all = await db.getAll('menus');
+        menus = all || [];
+        return newMenu;
+    },
+    async deleteMenu(id: string) {
+        const db = await ClientDB.init();
+        await db.delete('menus', id);
+        // Refresh local state
+        const all = await db.getAll('menus');
+        menus = all || [];
+    },
+    async updateMenu(id: string, name: string, items: any[]) {
+        const db = await ClientDB.init();
+        const menu = await db.get('menus', id);
+        if (menu) {
+            menu.name = name;
+            menu.items = items;
+            await db.put('menus', menu);
+            // Refresh local state
+            const all = await db.getAll('menus');
+            menus = all || [];
+        }
+    },
     getPostBySlugLocal(slug: string) {
         return posts.find(p => p.slug === slug);
     },
@@ -86,6 +135,24 @@ export const adminState = {
                 }
             } catch (e) {
                 console.warn("[AdminState] Polyglot Users load skipped", e);
+            }
+
+            // 1.8 Hydrate custom tables from ClientDB
+            try {
+                const clientDB = await Promise.race([
+                    clientDBInitPromise,
+                    new Promise<null>((_, reject) => setTimeout(() => reject('timeout'), 1500))
+                ]) as any;
+
+                if (clientDB) {
+                    const meta = await clientDB.getAll('_meta');
+                    tables = meta || [];
+
+                    const allMenus = await clientDB.getAll('menus');
+                    menus = allMenus || [];
+                }
+            } catch (e) {
+                // ignore
             }
 
             // 2. Initial Stats from local if none exists in cache

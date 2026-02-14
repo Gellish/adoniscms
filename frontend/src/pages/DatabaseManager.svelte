@@ -24,6 +24,17 @@
         const db = await ClientDB.init();
         const userTables = await db.getAll("_meta");
         tables = [...SYSTEM_TABLES, ...userTables];
+
+        // Handle URL selection
+        const urlParams = new URLSearchParams(window.location.search);
+        const tableParam = urlParams.get("table");
+        if (tableParam) {
+            const found = tables.find((t) => t.name === tableParam);
+            if (found) {
+                activeTable = found;
+                view = "data";
+            }
+        }
     }
 </script>
 
