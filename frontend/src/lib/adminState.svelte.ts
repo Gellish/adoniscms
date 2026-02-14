@@ -20,6 +20,7 @@ let sidebarMenu = $state<any>(null);
 let isOffline = $state(false);
 let lastFetched = $state<number>(0);
 let isSyncing = $state(false);
+let isHydrating = false;
 
 // Immediate Hydration from localStorage (Zero Flicker)
 if (browser) {
@@ -45,9 +46,14 @@ export const adminState = {
         const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
         const finalRoute = firstItemRoute || `/admin/${slug}`;
 
+        // Get max order
+        const all = await db.getAll('menus');
+        const maxOrder = all.reduce((max: number, m: any) => Math.max(max, m.order || 0), 0);
+
         const newMenu = {
             id: crypto.randomUUID(),
             name,
+            order: maxOrder + 1,
             items: [
                 {
                     id: crypto.randomUUID(),
@@ -60,8 +66,8 @@ export const adminState = {
         };
         await db.put('menus', newMenu);
         // Refresh local state
-        const all = await db.getAll('menus');
-        menus = all || [];
+        const updatedAll = await db.getAll('menus');
+        menus = updatedAll.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
         return newMenu;
     },
     async deleteMenu(id: string) {
@@ -80,8 +86,22 @@ export const adminState = {
             await db.put('menus', menu);
             // Refresh local state
             const all = await db.getAll('menus');
-            menus = all || [];
+            menus = all ? all.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)) : [];
         }
+    },
+    async reorderMenu(newOrder: any[]) {
+        // Update local state immediately (Optimistic UI)
+        menus = newOrder.map((m, i) => ({ ...m, order: i }));
+
+        const db = await ClientDB.init();
+        const tx = db.transaction('menus', 'readwrite');
+
+        const updates = newOrder.map((menu, index) => {
+            const updated = { ...menu, order: index };
+            return tx.store.put(updated);
+        });
+
+        await Promise.all([...updates, tx.done]);
     },
     getPostBySlugLocal(slug: string) {
         return posts.find(p => p.slug === slug);
@@ -94,6 +114,8 @@ export const adminState = {
      * Initial fast load for Admin section
      */
     async loadAllLocal() {
+        if (isHydrating) return;
+        isHydrating = true;
         try {
             // Use a Promise.race to ensure IDB doesn't block the app indefinitely
             const idbRefPromise = dbStart();
@@ -148,8 +170,81 @@ export const adminState = {
                     const meta = await clientDB.getAll('_meta');
                     tables = meta || [];
 
-                    const allMenus = await clientDB.getAll('menus');
-                    menus = allMenus || [];
+                    let allMenus = await clientDB.getAll('menus');
+                    if (allMenus) {
+                        // Migration 1: Ensure order exists
+                        allMenus.forEach((m: any, i: number) => {
+                            if (typeof m.order !== 'number') {
+                                m.order = i;
+                                clientDB.put('menus', m).catch(() => { });
+                            }
+                        });
+
+                        // Migration 2: Explode multipart menus (e.g. "MAIN NAVIGATION") 
+                        // so they become individually reorderable
+                        let exploded = false;
+                        const newMenusList: any[] = [];
+
+                        for (const m of allMenus) {
+                            if (m.items && m.items.length > 1) {
+                                exploded = true;
+                                // Explode!
+                                // Delete the original container
+                                await clientDB.delete('menus', m.id);
+
+                                // Create individual menus for each item
+                                for (let i = 0; i < m.items.length; i++) {
+                                    const item = m.items[i];
+                                    const splitMenu = {
+                                        id: crypto.randomUUID(),
+                                        name: item.label, // Use label as name
+                                        order: (m.order || 0) + (i * 0.1), // Preserve relative order
+                                        items: [item]
+                                    };
+                                    newMenusList.push(splitMenu);
+                                    await clientDB.put('menus', splitMenu);
+                                }
+                            } else {
+                                newMenusList.push(m);
+                            }
+                        }
+
+                        if (exploded) {
+                            allMenus = newMenusList;
+                        }
+
+                        // Migration 3: Deduplicate (Fixes Race Condition Dupes)
+                        const uniqueMap = new Map();
+                        const duplicates: any[] = [];
+
+                        // Re-fetch to ensure we catch any committed duplicates
+                        const currentMenus = await clientDB.getAll('menus');
+
+                        for (const m of currentMenus) {
+                            // Key by Name and URL to separate "Dashboard" from different dashboards if they existed, 
+                            // but here we likely have identical duplicates.
+                            const key = m.name + '|' + (m.items?.[0]?.url || '');
+                            if (uniqueMap.has(key)) {
+                                duplicates.push(m);
+                            } else {
+                                uniqueMap.set(key, m);
+                            }
+                        }
+
+                        if (duplicates.length > 0) {
+                            for (const dup of duplicates) {
+                                await clientDB.delete('menus', dup.id);
+                            }
+                            allMenus = Array.from(uniqueMap.values());
+                        } else {
+                            // Prefer latest DB state
+                            if (currentMenus.length > 0) allMenus = currentMenus;
+                        }
+
+                        menus = allMenus.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+                    } else {
+                        menus = [];
+                    }
                 }
             } catch (e) {
                 // ignore
@@ -183,6 +278,8 @@ export const adminState = {
             // Fallback to minimal state so UI doesn't crash
             if (!stats) stats = { posts: 0, users: 1, recentPosts: [], systemState: "Error Recovery Mode" };
             if (users.length === 0) users = [{ fullName: 'Admin User', email: 'admin@devcms.com', role: 'admin', joinedAt: new Date().toISOString() }];
+        } finally {
+            isHydrating = false;
         }
     },
 

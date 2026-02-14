@@ -139,6 +139,56 @@
         }
     }
 
+    // Drag and Drop Logic
+    let draggingItem = $state<any>(null);
+    let dragOverItem = $state<any>(null);
+
+    function handleDragStart(e: DragEvent, menu: any) {
+        draggingItem = menu;
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", menu.id);
+            // Hide the default drag image slightly
+            e.dataTransfer.setDragImage(e.target as Element, 0, 0);
+        }
+    }
+
+    function handleDragOver(e: DragEvent, menu: any) {
+        e.preventDefault();
+        if (draggingItem === menu) return;
+        dragOverItem = menu;
+    }
+
+    function handleDragEnd() {
+        draggingItem = null;
+        dragOverItem = null;
+    }
+
+    async function handleDrop(e: DragEvent, targetMenu: any) {
+        e.preventDefault();
+        if (!draggingItem || draggingItem === targetMenu) return;
+
+        const newOrder = [...adminState.menus];
+        const draggedIdx = newOrder.findIndex((m) => m.id === draggingItem.id);
+        const targetIdx = newOrder.findIndex((m) => m.id === targetMenu.id);
+
+        if (draggedIdx > -1 && targetIdx > -1) {
+            // Remove dragged item
+            const [removed] = newOrder.splice(draggedIdx, 1);
+            // Insert at new position
+            newOrder.splice(targetIdx, 0, removed);
+
+            // Clear styles immediately for snappy feel
+            handleDragEnd();
+
+            // Persist (and update local state via reorderMenu)
+            await adminState.reorderMenu(newOrder);
+            return;
+        }
+
+        handleDragEnd();
+    }
+
     // Close context menu on global click
     function onGlobalClick() {
         closeContextMenu();
@@ -155,45 +205,60 @@
         <nav class="nav-scroll py-4">
             <!-- 100% Dynamic Sections Only -->
             {#each adminState.menus as menu (menu.id)}
-                {#if menu.items.length === 1 && menu.items[0].label.toLowerCase() === menu.name.toLowerCase()}
-                    <a
-                        href={menu.items[0].url}
-                        class="nav-item"
-                        class:active={page.url.pathname === menu.items[0].url}
-                        oncontextmenu={(e) => handleContextMenu(e, menu)}
-                    >
-                        <span class="font-semibold">{menu.items[0].label}</span>
-                    </a>
-                {:else if menu.items.length > 0}
-                    <div class="nav-group mb-2">
-                        <div
-                            class="nav-item section-header group pointer-events-none"
-                            oncontextmenu={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                            }}
+                <div
+                    draggable="true"
+                    ondragstart={(e) => handleDragStart(e, menu)}
+                    ondragover={(e) => handleDragOver(e, menu)}
+                    ondragend={handleDragEnd}
+                    ondrop={(e) => handleDrop(e, menu)}
+                    class="menu-wrapper"
+                    class:dragging={draggingItem === menu}
+                    class:drag-over={dragOverItem === menu}
+                    role="listitem"
+                >
+                    {#if menu.items.length === 1 && menu.items[0].label.toLowerCase() === menu.name.toLowerCase()}
+                        <a
+                            href={menu.items[0].url}
+                            class="nav-item"
+                            class:active={page.url.pathname ===
+                                menu.items[0].url}
+                            oncontextmenu={(e) => handleContextMenu(e, menu)}
                         >
-                            <span
-                                class="flex-1 font-bold text-slate-500 text-[0.65rem] uppercase tracking-widest"
-                                >{menu.name}</span
+                            <span class="font-semibold"
+                                >{menu.items[0].label}</span
                             >
-                        </div>
-                        <div class="sub-items">
-                            {#each menu.items as item}
-                                <a
-                                    href={item.url}
-                                    class="nav-item sub"
-                                    class:active={page.url.pathname ===
-                                        item.url}
-                                    oncontextmenu={(e) =>
-                                        handleContextMenu(e, menu)}
+                        </a>
+                    {:else if menu.items.length > 0}
+                        <div class="nav-group mb-2">
+                            <div
+                                class="nav-item section-header group pointer-events-none"
+                                oncontextmenu={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                }}
+                            >
+                                <span
+                                    class="flex-1 font-bold text-slate-500 text-[0.65rem] uppercase tracking-widest"
+                                    >{menu.name}</span
                                 >
-                                    <span>{item.label}</span>
-                                </a>
-                            {/each}
+                            </div>
+                            <div class="sub-items">
+                                {#each menu.items as item}
+                                    <a
+                                        href={item.url}
+                                        class="nav-item sub"
+                                        class:active={page.url.pathname ===
+                                            item.url}
+                                        oncontextmenu={(e) =>
+                                            handleContextMenu(e, menu)}
+                                    >
+                                        <span>{item.label}</span>
+                                    </a>
+                                {/each}
+                            </div>
                         </div>
-                    </div>
-                {/if}
+                    {/if}
+                </div>
             {/each}
 
             <!-- THE RED CIRCLE BUTTON -->
@@ -788,5 +853,20 @@
         height: 1px;
         background: #f1f5f9;
         margin: 4px 0;
+    }
+
+    /* Drag and Drop Styles */
+    .menu-wrapper {
+        transition: all 0.2s;
+        border-radius: 4px;
+        margin-bottom: 2px;
+    }
+    .menu-wrapper.dragging {
+        opacity: 0.5;
+        background: #3d4648;
+    }
+    .menu-wrapper.drag-over {
+        border-top: 2px solid #6c5ce7;
+        padding-top: 2px;
     }
 </style>
