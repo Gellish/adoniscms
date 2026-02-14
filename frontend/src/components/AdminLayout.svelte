@@ -139,6 +139,13 @@
         }
     }
 
+    // Layout expansion logic
+    let isDashboard = $derived(
+        page.url.pathname.includes("/admin/dashboard") ||
+            page.url.pathname === "/admin" ||
+            page.url.pathname === "/admin/",
+    );
+
     // Drag and Drop Logic
     let draggingItem = $state<any>(null);
     let dragOverItem = $state<any>(null);
@@ -283,15 +290,18 @@
     </aside>
 
     <div class="main-content">
-        <header class="top-nav">
-            <div class="user-info">
-                <span>{auth.user?.fullName}</span>
-                <button onclick={handleLogout} class="logout-btn">Logout</button
-                >
-            </div>
-        </header>
+        {#if !isDashboard}
+            <header class="top-nav">
+                <div class="user-info">
+                    <span>{auth.user?.fullName}</span>
+                    <button onclick={handleLogout} class="logout-btn"
+                        >Logout</button
+                    >
+                </div>
+            </header>
+        {/if}
 
-        <main class="page-body">
+        <main class="page-body" class:is-dashboard={isDashboard}>
             {@render children()}
         </main>
     </div>
@@ -616,7 +626,13 @@
     }
     .page-body {
         padding: 2rem;
-        overflow-y: auto;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .page-body.is-dashboard {
+        padding: 0 !important;
     }
 
     /* Beautiful Modal Styles - Refined to match screenshot */

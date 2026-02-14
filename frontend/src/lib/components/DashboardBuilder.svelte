@@ -4,6 +4,7 @@
     import { fade, slide } from "svelte/transition";
     import { adminState } from "$lib/adminState.svelte";
     import WidgetTable from "$lib/components/dashboard/WidgetTable.svelte";
+    import UserProfile from "$lib/components/dashboard/UserProfile.svelte";
 
     let { slug = "default" } = $props<{ slug?: string }>();
 
@@ -13,7 +14,8 @@
         | "chart"
         | "activity"
         | "table"
-        | "title";
+        | "title"
+        | "profile";
 
     interface Widget {
         id: string;
@@ -120,6 +122,14 @@
             icon: "🏷️",
             description: "A draggable title for your dashboard section.",
             defaultCols: 12,
+            defaultRows: 1,
+        },
+        {
+            type: "profile",
+            label: "User Profile",
+            icon: "👤",
+            description: "Display current user and logout button.",
+            defaultCols: 3,
             defaultRows: 1,
         },
     ];
@@ -347,7 +357,7 @@
         saveDashboard();
     }
 
-    function handleContextMenu(e: MouseEvent, widgetId: string) {
+    function handleContextMenu(e: MouseEvent, widgetId: string | null = null) {
         e.preventDefault();
         e.stopPropagation();
         contextMenu = {
@@ -482,9 +492,17 @@
     }
 </script>
 
-<div class="dashboard-builder h-full flex flex-col bg-[#f8fafc]">
+<div
+    class="dashboard-builder flex-1 w-full flex flex-col bg-white overflow-hidden"
+    oncontextmenu={(e) => handleContextMenu(e)}
+    role="region"
+    aria-label="Dashboard Designer"
+>
     <!-- Canvas -->
-    <main class="flex-1 p-8 overflow-y-auto">
+    <main
+        class="flex-1 p-0 overflow-y-auto"
+        oncontextmenu={(e) => handleContextMenu(e)}
+    >
         {#if isLoading}
             <div class="h-full flex items-center justify-center">
                 <div
@@ -779,6 +797,10 @@
                                             {/if}
                                         </div>
                                     </div>
+                                {:else if widget.type === "profile"}
+                                    <div class="flex-1 min-h-0 flex flex-col">
+                                        <UserProfile />
+                                    </div>
                                 {/if}
                             </div>
                         {/if}
@@ -989,30 +1011,6 @@
         </div>
     {/if}
 
-    <!-- Floating Add Button -->
-    <button
-        onclick={() => (showPalette = true)}
-        class="fixed bottom-8 right-8 w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:bg-indigo-700 transition-all hover:scale-110 active:scale-95 z-50 group"
-        aria-label="Add Component"
-    >
-        <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="3"
-            stroke-linecap="round"
-        >
-            <path d="M12 5V19M5 12H19" />
-        </svg>
-        <span
-            class="absolute right-20 bg-slate-900 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap uppercase tracking-widest pointer-events-none"
-        >
-            Add Component
-        </span>
-    </button>
-
     <!-- Context Menu -->
     {#if contextMenu.visible}
         <div
@@ -1023,37 +1021,64 @@
             <div class="px-4 py-2 border-b border-slate-50 mb-1">
                 <span
                     class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
-                    >Widget Actions</span
+                    >Dashboard Actions</span
                 >
             </div>
-            <button
-                onclick={() => {
-                    if (contextMenu.widgetId) {
-                        removeWidget(contextMenu.widgetId);
-                        closeContextMenu();
-                    }
-                }}
-                class="w-full flex items-center gap-3 px-4 py-2.5 text-rose-600 hover:bg-rose-50 transition-colors text-sm font-bold group"
-            >
-                <div
-                    class="p-1.5 bg-rose-100 rounded-lg group-hover:bg-rose-200 transition-colors"
+            {#if contextMenu.widgetId}
+                <button
+                    onclick={() => {
+                        if (contextMenu.widgetId) {
+                            removeWidget(contextMenu.widgetId);
+                            closeContextMenu();
+                        }
+                    }}
+                    class="w-full flex items-center gap-3 px-4 py-2.5 text-rose-600 hover:bg-rose-50 transition-colors text-sm font-bold group"
                 >
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                        stroke-linecap="round"
+                    <div
+                        class="p-1.5 bg-rose-100 rounded-lg group-hover:bg-rose-200 transition-colors"
                     >
-                        <path
-                            d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                        />
-                    </svg>
-                </div>
-                <span>Delete Component</span>
-            </button>
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                            stroke-linecap="round"
+                        >
+                            <path
+                                d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                            />
+                        </svg>
+                    </div>
+                    <span>Delete Component</span>
+                </button>
+            {:else}
+                <button
+                    onclick={() => {
+                        showPalette = true;
+                        closeContextMenu();
+                    }}
+                    class="w-full flex items-center gap-3 px-4 py-2.5 text-indigo-600 hover:bg-indigo-50 transition-colors text-sm font-bold group"
+                >
+                    <div
+                        class="p-1.5 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors"
+                    >
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                            stroke-linecap="round"
+                        >
+                            <path d="M12 5V19M5 12H19" />
+                        </svg>
+                    </div>
+                    <span>Add Component</span>
+                </button>
+            {/if}
             <button
                 onclick={closeContextMenu}
                 class="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors text-sm font-medium"
