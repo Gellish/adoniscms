@@ -28,6 +28,7 @@
         rows: number; // 1-12
         x: number; // 0-11
         y: number; // 0+
+        locked?: boolean;
     }
 
     let widgets = $state<Widget[]>([]);
@@ -82,7 +83,7 @@
             label: "Stats Card",
             icon: "📊",
             description: "Display a single metric with a trend.",
-            defaultCols: 3,
+            defaultCols: 6,
             defaultRows: 3,
         },
         {
@@ -90,7 +91,7 @@
             label: "Data List",
             icon: "📝",
             description: "Show a list of recent records.",
-            defaultCols: 4,
+            defaultCols: 8,
             defaultRows: 6,
         },
         {
@@ -98,23 +99,23 @@
             label: "Growth Chart",
             icon: "📈",
             description: "Visualize data trends over time.",
-            defaultCols: 6,
-            defaultRows: 6,
+            defaultCols: 11,
+            defaultRows: 4,
         },
         {
             type: "activity",
             label: "Activity Feed",
-            icon: "🔔",
-            description: "Real-time updates and logs.",
-            defaultCols: 3,
-            defaultRows: 6,
+            icon: "⚡",
+            description: "Live feed of system activities.",
+            defaultCols: 8,
+            defaultRows: 4,
         },
         {
             type: "table",
             label: "Data Table",
             icon: "🗃️",
             description: "Display a table of records (default: Posts).",
-            defaultCols: 12,
+            defaultCols: 22,
             defaultRows: 12,
             data: { tableName: "posts" },
         },
@@ -123,7 +124,7 @@
             label: "Dashboard Title",
             icon: "🏷️",
             description: "A draggable title for your dashboard section.",
-            defaultCols: 12,
+            defaultCols: 22,
             defaultRows: 1,
         },
         {
@@ -131,7 +132,7 @@
             label: "User Profile",
             icon: "👤",
             description: "Display current user and logout button.",
-            defaultCols: 3,
+            defaultCols: 6,
             defaultRows: 1,
         },
         {
@@ -139,7 +140,7 @@
             label: "Slim Header",
             icon: "👤",
             description: "A minimalist header with email and logout button.",
-            defaultCols: 12,
+            defaultCols: 22,
             defaultRows: 1,
         },
     ];
@@ -162,7 +163,7 @@
                 label: `${t.name} Table`,
                 icon: "🗃️",
                 description: `Display data from ${t.name}`,
-                defaultCols: 8,
+                defaultCols: 22,
                 defaultRows: 4,
                 data: { tableName: t.name },
             }));
@@ -229,7 +230,7 @@
                     id: "header-1",
                     type: "title",
                     title: slug.replace("-", " ").toUpperCase() + " DASHBOARD",
-                    cols: 12,
+                    cols: 22,
                     rows: 1,
                     x: 0,
                     y: 0,
@@ -284,6 +285,7 @@
 
     // --- Resizing Logic ---
     function startResize(e: MouseEvent, widget: any, dir: string = "br") {
+        if (widget.locked) return;
         e.preventDefault();
         e.stopPropagation();
         isResizing = true;
@@ -308,8 +310,8 @@
 
         const rect = container.getBoundingClientRect();
         const gap = 24; // gap-6
-        const totalGap = gap * 11;
-        const colWidth = (rect.width - totalGap) / 12 + gap;
+        const totalGap = gap * 21; // 21 gaps for 22 columns
+        const colWidth = (rect.width - totalGap) / 22 + gap;
         const rowHeight = 60 + gap;
 
         let newCols = initialCols;
@@ -342,8 +344,8 @@
         }
 
         // Final Constraints
-        newCols = Math.max(2, Math.min(12 - newX, newCols));
-        newX = Math.max(0, Math.min(11, newX));
+        newCols = Math.max(2, Math.min(22 - newX, newCols));
+        newX = Math.max(0, Math.min(21, newX)); // Max X is 21 for 22 columns (0-21)
         newY = Math.max(0, newY);
 
         if (
@@ -386,6 +388,7 @@
 
     // --- Dragging Logic ---
     function startDrag(e: MouseEvent, widget: any) {
+        if (widget.locked) return;
         if (
             e.target instanceof HTMLButtonElement ||
             (e.target as HTMLElement).closest("button")
@@ -413,14 +416,14 @@
 
         const rect = container.getBoundingClientRect();
         const gap = 24; // gap-6
-        const totalGap = gap * 11;
-        const colWidth = (rect.width - totalGap) / 12 + gap;
+        const totalGap = gap * 21; // 21 gaps for 22 columns
+        const colWidth = (rect.width - totalGap) / 22 + gap;
         const rowHeight = 60 + gap;
 
         const newX = Math.max(
             0,
             Math.min(
-                12 - (draggingWidget.cols || 1),
+                22 - (draggingWidget.cols || 1), // Max X position for the widget
                 Math.round(initialWidgetX + deltaX / colWidth),
             ),
         );
@@ -558,17 +561,17 @@
         {:else}
             <div
                 bind:this={container}
-                class="grid grid-cols-1 md:grid-cols-12 gap-6 relative"
+                class="grid grid-cols-1 md:grid-cols-22 gap-6 relative"
                 style="grid-auto-rows: 60px;"
                 in:fade
             >
                 {#if isResizing || isDragging}
                     <!-- Transparent Grid Layer -->
                     <div
-                        class="absolute inset-0 z-0 grid grid-cols-12 gap-6 pointer-events-none fade-in"
+                        class="absolute inset-0 z-0 grid grid-cols-22 gap-6 pointer-events-none fade-in"
                         style="grid-auto-rows: 60px;"
                     >
-                        {#each Array(12 * 30) as _, i}
+                        {#each Array(22 * 40) as _, i}
                             <div
                                 class="bg-indigo-500/5 rounded-2xl border-2 border-indigo-500/10 min-h-[60px]"
                             ></div>
@@ -626,8 +629,11 @@
                     >
                         {#if widget.type !== "header"}
                             <div
-                                class="shrink-0 flex flex-col relative group/content cursor-grab active:cursor-grabbing"
+                                class="shrink-0 flex flex-col relative group/content"
+                                class:cursor-grab={!widget.locked}
+                                class:active:cursor-grabbing={!widget.locked}
                                 onmousedown={(e) => {
+                                    if (widget.locked) return;
                                     if (
                                         (e.target as HTMLElement).closest(
                                             "input, button",
@@ -636,6 +642,9 @@
                                         return;
                                     startDrag(e, widget);
                                 }}
+                                role="button"
+                                tabindex="0"
+                                aria-label="Drag widget"
                                 class:px-4={widget.type !== "title"}
                                 class:pt-4={widget.type !== "title"}
                                 class:pb-2={widget.type !== "title"}
@@ -698,7 +707,50 @@
                             </div>
                         {/if}
 
-                        {#if widget.type !== "title" && widget.type !== "header"}
+                        {#if widget.type === "header"}
+                            <div
+                                class="flex-1 min-h-[60px] flex flex-col relative group/header"
+                                class:cursor-grab={!widget.locked}
+                                class:active:cursor-grabbing={!widget.locked}
+                                onmousedown={(e) => {
+                                    if (widget.locked) return;
+                                    if (
+                                        (e.target as HTMLElement).closest(
+                                            "button",
+                                        )
+                                    )
+                                        return;
+                                    startDrag(e, widget);
+                                }}
+                                role="button"
+                                tabindex="0"
+                                aria-label="Drag header"
+                            >
+                                <WidgetHeader />
+
+                                <!-- Remove Button for Naked Header (always on right) -->
+                                <button
+                                    onclick={() => removeWidget(widget.id)}
+                                    class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors z-[60] opacity-0 group-hover:opacity-100"
+                                    title="Remove component"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
+                            </div>
+                        {:else if widget.type !== "title"}
                             <div class="flex-1 min-h-0 flex flex-col px-4 pb-4">
                                 {#if widget.type === "stats"}
                                     <div
@@ -795,44 +847,6 @@
                                     <div class="flex-1 min-h-0 flex flex-col">
                                         <UserProfile />
                                     </div>
-                                {:else if widget.type === "header"}
-                                    <div
-                                        class="flex-1 min-h-[60px] flex flex-col relative group/header cursor-grab active:cursor-grabbing"
-                                        onmousedown={(e) => {
-                                            if (
-                                                (
-                                                    e.target as HTMLElement
-                                                ).closest("button")
-                                            )
-                                                return;
-                                            startDrag(e, widget);
-                                        }}
-                                    >
-                                        <WidgetHeader />
-
-                                        <!-- Remove Button for Naked Header (always on right) -->
-                                        <button
-                                            onclick={() =>
-                                                removeWidget(widget.id)}
-                                            class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors z-[60] opacity-0 group-hover:opacity-100"
-                                            title="Remove component"
-                                        >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                class="h-4 w-4"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                    stroke-width="2"
-                                                    d="M6 18L18 6M6 6l12 12"
-                                                />
-                                            </svg>
-                                        </button>
-                                    </div>
                                 {/if}
                             </div>
                         {/if}
@@ -840,10 +854,11 @@
                         <!-- Resize Handles (All 4 Corners) -->
                         <div
                             class="absolute top-0 left-0 w-8 h-8 cursor-nw-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50 hover:bg-indigo-600/20 text-indigo-600 rounded-br-xl"
+                            class:!hidden={widget.locked}
                             onmousedown={(e) => startResize(e, widget, "tl")}
                             role="button"
                             tabindex="0"
-                            aria-label="Resize from top-left"
+                            aria-label="Resize component"
                         >
                             <svg
                                 width="12"
@@ -861,6 +876,7 @@
                         </div>
                         <div
                             class="absolute top-0 right-0 w-8 h-8 cursor-ne-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50 hover:bg-indigo-600/20 text-indigo-600 rounded-bl-xl"
+                            class:!hidden={widget.locked}
                             onmousedown={(e) => startResize(e, widget, "tr")}
                             role="button"
                             tabindex="0"
@@ -882,6 +898,7 @@
                         </div>
                         <div
                             class="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50 hover:bg-indigo-600/20 text-indigo-600 rounded-tr-xl"
+                            class:!hidden={widget.locked}
                             onmousedown={(e) => startResize(e, widget, "bl")}
                             role="button"
                             tabindex="0"
@@ -903,6 +920,7 @@
                         </div>
                         <div
                             class="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50 hover:bg-indigo-600/20 text-indigo-600 rounded-tl-xl"
+                            class:!hidden={widget.locked}
                             onmousedown={(e) => startResize(e, widget, "br")}
                             role="button"
                             tabindex="0"
@@ -1057,6 +1075,66 @@
                 >
             </div>
             {#if contextMenu.widgetId}
+                {@const targetWidget = widgets.find(
+                    (w) => w.id === contextMenu.widgetId,
+                )}
+                <button
+                    onclick={() => {
+                        if (targetWidget) {
+                            targetWidget.locked = !targetWidget.locked;
+                            saveDashboard();
+                            closeContextMenu();
+                        }
+                    }}
+                    class="w-full flex items-center gap-3 px-4 py-2.5 text-indigo-600 hover:bg-indigo-50 transition-colors text-sm font-bold group"
+                >
+                    <div
+                        class="p-1.5 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors"
+                    >
+                        {#if targetWidget?.locked}
+                            <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="3"
+                                stroke-linecap="round"
+                            >
+                                <path
+                                    d="M8 11V7a4 4 0 1 1 8 0v4m-9 0h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z"
+                                />
+                                <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                            </svg>
+                        {:else}
+                            <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="3"
+                                stroke-linecap="round"
+                            >
+                                <rect
+                                    x="3"
+                                    y="11"
+                                    width="18"
+                                    height="11"
+                                    rx="2"
+                                    ry="2"
+                                />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                        {/if}
+                    </div>
+                    <span>
+                        {targetWidget?.locked
+                            ? "Unlock Component"
+                            : "Lock Component"}
+                    </span>
+                </button>
+
                 <button
                     onclick={() => {
                         if (contextMenu.widgetId) {

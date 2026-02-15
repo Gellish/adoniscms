@@ -38,6 +38,10 @@ export default {
                 md: 'var(--shadow-md)',
                 lg: 'var(--shadow-lg)',
                 xl: 'var(--shadow-xl)',
+            },
+            gridTemplateColumns: {
+                '16': 'repeat(16, minmax(0, 1fr))',
+                '22': 'repeat(22, minmax(0, 1fr))',
             }
         }
     },
