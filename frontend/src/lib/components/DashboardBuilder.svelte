@@ -660,7 +660,10 @@
                                         <input
                                             type="text"
                                             bind:value={widget.title}
-                                            class="w-full bg-transparent border-none outline-none text-2xl font-black text-slate-900 uppercase tracking-tighter cursor-text focus:ring-2 focus:ring-indigo-500/20 rounded-lg py-1 px-2 mb-0"
+                                            disabled={widget.locked}
+                                            class="w-full bg-transparent border-none outline-none text-2xl font-black text-slate-900 uppercase tracking-tighter rounded-lg py-1 px-2 mb-0 {widget.locked
+                                                ? 'cursor-default select-none'
+                                                : 'cursor-text focus:ring-2 focus:ring-indigo-500/20'}"
                                             spellcheck="false"
                                             onblur={() => saveDashboard()}
                                             onkeydown={(e) =>
