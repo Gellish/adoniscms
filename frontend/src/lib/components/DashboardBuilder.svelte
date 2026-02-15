@@ -9,15 +9,11 @@
     let { slug = "default" } = $props<{ slug?: string }>();
 
     // Initialize state properly
-    let state = $state(new DashboardState(slug));
+    // Using $derived ensures state is recreated when slug changes, fixing the linter warning
+    let state = $derived(new DashboardState(slug));
 
     $effect(() => {
-        // If the slug changed, update the state instance
-        if (state.slug !== slug) {
-            state = new DashboardState(slug);
-        }
-
-        // Load dashboard config
+        // Load dashboard config when state instance changes (which happens when slug changes)
         state.load();
 
         // Ensure shared admin state (like tables) is loaded

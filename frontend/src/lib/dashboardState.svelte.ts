@@ -1,8 +1,9 @@
 import { ClientDB } from "$lib/client-db/core";
 import { adminState } from "$lib/adminState.svelte";
-import type { Widget, WidgetType } from "$lib/components/dashboard/widgetConfig";
+import type { Widget, WidgetType, PaletteItem } from "$lib/components/dashboard/widgetConfig";
 import { BASE_WIDGETS } from "$lib/components/dashboard/widgetConfig";
 import { browser } from "$app/environment";
+import { GAP, ROW_HEIGHT, GRID_COLS } from "$lib/dashboardConstants";
 
 export class DashboardState {
     slug: string;
@@ -13,7 +14,7 @@ export class DashboardState {
 
     // Grid State
     isResizing = $state(false);
-    resizingWidget = $state<any>(null);
+    resizingWidget = $state<Widget | null>(null);
     resizeDir = $state("br");
     initialX = 0;
     initialY = 0;
@@ -24,11 +25,15 @@ export class DashboardState {
 
     // Drag State
     isDragging = $state(false);
-    draggingWidget = $state<any>(null);
+    draggingWidget = $state<Widget | null>(null);
     dragStartX = 0;
     dragStartY = 0;
     initialWidgetX = 0;
     initialWidgetY = 0;
+
+    // Cached Metrics (Performance Optimization)
+    cachedColWidth = 0;
+    cachedContainerRect: DOMRect | null = null;
 
     // Context Menu
     contextMenu = $state({
@@ -108,7 +113,7 @@ export class DashboardState {
         }
     }
 
-    addWidget(item: any) {
+    addWidget(item: PaletteItem) {
         // Simple logic to find next Y position
         const maxY =
             this.widgets.length > 0
@@ -141,11 +146,22 @@ export class DashboardState {
         this.save();
     }
 
+    // --- Metrics Cache Helper ---
+    updateMetrics() {
+        if (!this.container) return;
+        this.cachedContainerRect = this.container.getBoundingClientRect();
+        const totalGap = GAP * (GRID_COLS - 1);
+        this.cachedColWidth = (this.cachedContainerRect.width - totalGap) / GRID_COLS + GAP;
+    }
+
     // --- Resizing Logic ---
-    startResize(e: MouseEvent, widget: any, dir: string = "br") {
+    startResize(e: MouseEvent, widget: Widget, dir: string = "br") {
         if (widget.locked) return;
         e.preventDefault();
         e.stopPropagation();
+
+        this.updateMetrics();
+
         this.isResizing = true;
         this.resizingWidget = widget;
         this.resizeDir = dir;
@@ -166,11 +182,8 @@ export class DashboardState {
         const deltaX = e.clientX - this.initialX;
         const deltaY = e.clientY - this.initialY;
 
-        const rect = this.container.getBoundingClientRect();
-        const gap = 24; // gap-6
-        const totalGap = gap * 21; // 21 gaps for 22 columns
-        const colWidth = (rect.width - totalGap) / 22 + gap;
-        const rowHeight = 60 + gap;
+        const colWidth = this.cachedColWidth || 1; // fallback
+        const rowHeight = ROW_HEIGHT + GAP;
 
         let newCols = this.initialCols;
         let newRows = this.initialRows;
@@ -202,8 +215,8 @@ export class DashboardState {
         }
 
         // Final Constraints
-        newCols = Math.max(2, Math.min(22 - newX, newCols));
-        newX = Math.max(0, Math.min(21, newX)); // Max X is 21 for 22 columns (0-21)
+        newCols = Math.max(2, Math.min(GRID_COLS - newX, newCols));
+        newX = Math.max(0, Math.min(GRID_COLS - 1, newX));
         newY = Math.max(0, newY);
 
         if (
@@ -228,7 +241,7 @@ export class DashboardState {
     };
 
     // --- Dragging Logic ---
-    startDrag(e: MouseEvent, widget: any) {
+    startDrag(e: MouseEvent, widget: Widget) {
         if (widget.locked) return;
         if (
             e.target instanceof HTMLButtonElement ||
@@ -238,6 +251,9 @@ export class DashboardState {
             return;
 
         e.preventDefault();
+
+        this.updateMetrics();
+
         this.isDragging = true;
         this.draggingWidget = widget;
         this.dragStartX = e.clientX;
@@ -256,16 +272,13 @@ export class DashboardState {
         const deltaX = e.clientX - this.dragStartX;
         const deltaY = e.clientY - this.dragStartY;
 
-        const rect = this.container.getBoundingClientRect();
-        const gap = 24; // gap-6
-        const totalGap = gap * 21; // 21 gaps for 22 columns
-        const colWidth = (rect.width - totalGap) / 22 + gap;
-        const rowHeight = 60 + gap;
+        const colWidth = this.cachedColWidth || 1;
+        const rowHeight = ROW_HEIGHT + GAP;
 
         const newX = Math.max(
             0,
             Math.min(
-                22 - (this.draggingWidget.cols || 1), // Max X position for the widget
+                GRID_COLS - (this.draggingWidget.cols || 1), // Max X position for the widget
                 Math.round(this.initialWidgetX + deltaX / colWidth)
             )
         );

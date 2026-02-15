@@ -10,6 +10,7 @@
     import WidgetTitle from "$lib/components/dashboard/widgets/title/WidgetTitle.svelte";
     import { type DashboardState } from "$lib/dashboardState.svelte";
     import type { Widget } from "$lib/components/dashboard/widgetConfig";
+    import { DUMMY_POSTS } from "$lib/mockData";
 
     let { widget, state } = $props<{ widget: Widget; state: DashboardState }>();
 
@@ -44,18 +45,6 @@
             },
         },
     ];
-
-    // TODO: Move this dummy data generator to a better place or pass as prop if needed
-    function generateDummyPosts(count: number) {
-        return Array.from({ length: count }, (_, i) => ({
-            id: `post-${i}`,
-            title: `Demo Post Title ${i + 1} - A comprehensive guide to something interesting`,
-            status: i % 3 === 0 ? "published" : "draft",
-            publishedAt: new Date(Date.now() - i * 86400000).toISOString(),
-            updatedAt: new Date().toISOString(),
-        }));
-    }
-    const dummyPosts = generateDummyPosts(50);
 </script>
 
 <div
@@ -202,7 +191,7 @@
                     <div class="flex-1 min-h-0 bg-white relative">
                         {#if widget.data?.tableName?.toLowerCase() === "posts"}
                             <WidgetTable
-                                data={dummyPosts}
+                                data={DUMMY_POSTS}
                                 columns={POST_COLUMNS}
                             />
                         {:else}

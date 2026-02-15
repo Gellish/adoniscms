@@ -99,15 +99,6 @@
         contextMenu = null;
     }
 
-    async function handleDeleteMenu() {
-        if (contextMenu) {
-            if (confirm("Are you sure you want to delete this menu?")) {
-                await adminState.deleteMenu(contextMenu.menuId);
-            }
-            closeContextMenu();
-        }
-    }
-
     function openEditModal() {
         if (contextMenu) {
             const menu = adminState.menus.find(
@@ -136,6 +127,26 @@
             }
             await adminState.updateMenu(editMenuId, editMenuName, updatedItems);
             showEditMenuModal = false;
+        }
+    }
+
+    // Delete Confirmation Logic
+    let showDeleteMenuModal = $state(false);
+    let deleteMenuId = $state("");
+
+    function handleDeleteMenu() {
+        if (contextMenu) {
+            deleteMenuId = contextMenu.menuId;
+            showDeleteMenuModal = true;
+            closeContextMenu();
+        }
+    }
+
+    async function confirmDeleteMenu() {
+        if (deleteMenuId) {
+            await adminState.deleteMenu(deleteMenuId);
+            showDeleteMenuModal = false;
+            deleteMenuId = "";
         }
     }
 
@@ -247,6 +258,7 @@
                         </a>
                     {:else if menu.items.length > 0}
                         <div class="nav-group mb-2">
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
                                 class="nav-item section-header group pointer-events-none"
                                 oncontextmenu={(e) => {
@@ -317,6 +329,8 @@
     </div>
 
     {#if showNewMenuModal}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="modal-overlay" onclick={() => (showNewMenuModal = false)}>
             <div class="modal-content" onclick={(e) => e.stopPropagation()}>
                 <div class="modal-header">
@@ -355,6 +369,7 @@
                 <div class="modal-body">
                     <div class="input-container mb-6">
                         <label for="menu-name">MENU NAME</label>
+                        <!-- svelte-ignore a11y_autofocus -->
                         <input
                             id="menu-name"
                             type="text"
@@ -409,6 +424,8 @@
 
     <!-- Edit Menu Modal -->
     {#if showEditMenuModal}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
             class="modal-overlay"
             onclick={() => (showEditMenuModal = false)}
@@ -419,6 +436,7 @@
                 onclick={(e) => e.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
+                tabindex="-1"
             >
                 <div class="modal-header">
                     <div class="header-content">
@@ -499,6 +517,93 @@
                             stroke-linejoin="round"
                             ><polyline points="9 18 15 12 9 6"></polyline></svg
                         >
+                    </button>
+                </div>
+            </div>
+        </div>
+    {/if}
+
+    <!-- Delete Menu Modal -->
+    {#if showDeleteMenuModal}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+            class="modal-overlay"
+            onclick={() => (showDeleteMenuModal = false)}
+            role="presentation"
+        >
+            <div
+                class="modal-content"
+                onclick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                tabindex="-1"
+            >
+                <div class="modal-header">
+                    <div class="header-content">
+                        <div
+                            class="icon-badge"
+                            style="background-color: #fff1f2; color: #e11d48;"
+                        >
+                            <span class="plus-icon" style="color: #e11d48;"
+                                >🗑️</span
+                            >
+                        </div>
+                        <div class="title-group">
+                            <h3 style="color: #881337;">Delete Menu?</h3>
+                            <p style="color: #e11d48;">
+                                This action cannot be undone.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        class="close-btn"
+                        onclick={() => (showDeleteMenuModal = false)}
+                        aria-label="Close modal"
+                        style="color: #e11d48; background-color: #fff1f2;"
+                        ><svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><line x1="18" y1="6" x2="6" y2="18"></line><line
+                                x1="6"
+                                y1="6"
+                                x2="18"
+                                y2="18"
+                            ></line></svg
+                        ></button
+                    >
+                </div>
+                <div class="modal-body" style="padding-bottom: 0;">
+                    <p
+                        style="color: #475569; font-size: 0.95rem; line-height: 1.6;"
+                    >
+                        Are you sure you want to delete this menu? All items
+                        within it will be removed permanently.
+                    </p>
+                </div>
+                <div
+                    class="modal-footer"
+                    style="background-color: #fff1f2; border-top-color: #ffe4e6; margin-top: 1.5rem;"
+                >
+                    <button
+                        class="btn-cancel hover:bg-rose-50"
+                        onclick={() => (showDeleteMenuModal = false)}
+                        style="color: #e11d48; border-color: #ffe4e6; background: white;"
+                        >Cancel</button
+                    >
+                    <button
+                        class="btn-create"
+                        onclick={confirmDeleteMenu}
+                        style="background-color: #e11d48; box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.3);"
+                    >
+                        <span>Delete Menu</span>
                     </button>
                 </div>
             </div>
