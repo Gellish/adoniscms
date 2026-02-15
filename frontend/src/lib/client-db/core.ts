@@ -25,7 +25,7 @@ export class ClientDB {
     static async init(): Promise<IDBPDatabase> {
         if (this.dbInstance) return this.dbInstance;
 
-        this.dbInstance = await openDB(this.DB_NAME, 42, {
+        this.dbInstance = await openDB(this.DB_NAME, 43, {
             upgrade(db, oldVersion, newVersion, transaction) {
                 // Only create stores if they don't exist. DO NOT DELETE EXISTING DATA.
                 if (!db.objectStoreNames.contains('_meta')) db.createObjectStore('_meta', { keyPath: 'name' });
@@ -33,6 +33,7 @@ export class ClientDB {
                 if (!db.objectStoreNames.contains('superadmin')) db.createObjectStore('superadmin', { keyPath: 'id' });
                 if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
                 if (!db.objectStoreNames.contains('dashboards')) db.createObjectStore('dashboards', { keyPath: 'id' });
+                if (!db.objectStoreNames.contains('custom_widgets')) db.createObjectStore('custom_widgets', { keyPath: 'id' });
             }
         });
 

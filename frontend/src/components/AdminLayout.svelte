@@ -299,15 +299,6 @@
                     + New Menu
                 </button>
             </div>
-
-            <div class="mt-auto px-4 border-t border-slate-800 pt-4">
-                <a
-                    href="/admin/database"
-                    class="nav-item secondary text-xs opacity-50"
-                >
-                    <span>Database Builder</span>
-                </a>
-            </div>
         </nav>
     </aside>
 

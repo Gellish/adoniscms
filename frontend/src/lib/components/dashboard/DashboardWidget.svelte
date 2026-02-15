@@ -8,17 +8,28 @@
     import WidgetChart from "$lib/components/dashboard/widgets/chart/WidgetChart.svelte";
     import WidgetActivity from "$lib/components/dashboard/widgets/activity/WidgetActivity.svelte";
     import WidgetTitle from "$lib/components/dashboard/widgets/title/WidgetTitle.svelte";
+    import WidgetManagerWidget from "$lib/components/dashboard/widgets/manager/WidgetManagerWidget.svelte";
+    import ClientDBWidget from "$lib/components/dashboard/widgets/system/ClientDBWidget.svelte";
     import { type DashboardState } from "$lib/dashboardState.svelte";
     import type { Widget } from "$lib/components/dashboard/widgetConfig";
     import { DUMMY_POSTS } from "$lib/mockData";
 
-    let { widget, state } = $props<{ widget: Widget; state: DashboardState }>();
+    let { widget, state: dashboardState } = $props<{
+        widget: Widget;
+        state: DashboardState;
+    }>();
+
+    let isMaximized = $state(false);
+
+    function toggleMaximize() {
+        isMaximized = !isMaximized;
+    }
 
     // Helper to determine if we should show the "Remove" button
     let showRemove = $derived(
         widget.type === "title" &&
-            state.isDragging &&
-            state.draggingWidget?.id === widget.id,
+            dashboardState.isDragging &&
+            dashboardState.draggingWidget?.id === widget.id,
     );
 
     const POST_COLUMNS = [
@@ -49,7 +60,7 @@
 
 <div
     class="rounded-xl transition-all duration-200 relative flex flex-col group"
-    oncontextmenu={(e) => state.handleContextMenu(e, widget.id)}
+    oncontextmenu={(e) => dashboardState.handleContextMenu(e, widget.id)}
     role="region"
     aria-label="{widget.title} widget"
     class:bg-white={widget.type !== "title" && widget.type !== "header"}
@@ -59,30 +70,46 @@
     class:border-opacity-0={widget.type === "header"}
     class:group-hover:border-opacity-100={widget.type === "header"}
     class:border-slate-200={widget.type !== "title" && widget.type !== "header"}
-    class:shadow-sm={widget.type !== "title" && widget.type !== "header"}
-    class:hover:shadow-xl={widget.type !== "title" && widget.type !== "header"}
+    class:shadow-sm={!isMaximized &&
+        widget.type !== "title" &&
+        widget.type !== "header"}
+    class:hover:shadow-xl={!isMaximized &&
+        widget.type !== "title" &&
+        widget.type !== "header"}
     class:overflow-hidden={widget.type !== "title" && widget.type !== "header"}
-    style="grid-column: {widget.x + 1} / span {widget.cols ||
-        4}; grid-row: {widget.y + 1} / span {widget.rows ||
-        1}; min-height: 60px;"
-    class:z-50={state.resizingWidget?.id === widget.id ||
-        state.draggingWidget?.id === widget.id}
-    class:ring-2={state.resizingWidget?.id === widget.id ||
-        state.draggingWidget?.id === widget.id}
-    class:ring-indigo-500={state.resizingWidget?.id === widget.id ||
-        state.draggingWidget?.id === widget.id}
-    class:shadow-2xl={state.resizingWidget?.id === widget.id ||
-        state.draggingWidget?.id === widget.id}
-    class:opacity-50={state.isDragging &&
-        state.draggingWidget?.id !== widget.id}
+    style={isMaximized
+        ? "position: fixed; inset: 1rem; z-index: 100; height: auto;"
+        : `grid-column: ${widget.x + 1} / span ${widget.cols || 4}; grid-row: ${widget.y + 1} / span ${widget.rows || 1}; min-height: 60px;`}
+    class:z-50={!isMaximized &&
+        (dashboardState.resizingWidget?.id === widget.id ||
+            dashboardState.draggingWidget?.id === widget.id)}
+    class:ring-2={!isMaximized &&
+        (dashboardState.resizingWidget?.id === widget.id ||
+            dashboardState.draggingWidget?.id === widget.id)}
+    class:ring-indigo-500={!isMaximized &&
+        (dashboardState.resizingWidget?.id === widget.id ||
+            dashboardState.draggingWidget?.id === widget.id)}
+    class:shadow-2xl={isMaximized ||
+        (!isMaximized &&
+            (dashboardState.resizingWidget?.id === widget.id ||
+                dashboardState.draggingWidget?.id === widget.id))}
+    class:opacity-50={!isMaximized &&
+        dashboardState.isDragging &&
+        dashboardState.draggingWidget?.id !== widget.id}
     transition:slide
 >
-    {#if widget.type !== "header"}
+    {#if isMaximized}
+        <div
+            class="fixed inset-0 bg-black/20 backdrop-blur-sm -z-10 rounded-xl pointer-events-none"
+        ></div>
+    {/if}
+
+    {#if widget.type !== "header" && widget.type !== "widget_manager" && widget.type !== "client_db"}
         <div
             class="shrink-0 flex flex-col relative group/content"
             class:cursor-grab={!widget.locked}
             class:active:cursor-grabbing={!widget.locked}
-            onmousedown={(e: MouseEvent) => state.startDrag(e, widget)}
+            onmousedown={(e: MouseEvent) => dashboardState.startDrag(e, widget)}
             role="button"
             tabindex="0"
             aria-label="Drag widget"
@@ -97,7 +124,7 @@
             class:bg-slate-50={widget.type !== "title"}
         >
             {#if widget.type === "title"}
-                <WidgetTitle {widget} onSave={() => state.save()} />
+                <WidgetTitle {widget} onSave={() => dashboardState.save()} />
             {:else}
                 <div class="flex items-center gap-2">
                     <span
@@ -108,27 +135,29 @@
             {/if}
 
             <!-- Remove Button (Top-right) -->
-            <button
-                onclick={() => state.removeWidget(widget.id)}
-                class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors z-[60] opacity-0 group-hover:opacity-100"
-                class:!opacity-100={showRemove}
-                title="Remove component"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+            {#if !widget.locked}
+                <button
+                    onclick={() => dashboardState.removeWidget(widget.id)}
+                    class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors z-[60] opacity-0 group-hover:opacity-100"
+                    class:!opacity-100={showRemove}
+                    title="Remove component"
                 >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M6 18L18 6M6 6l12 12"
-                    />
-                </svg>
-            </button>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        />
+                    </svg>
+                </button>
+            {/if}
         </div>
     {/if}
 
@@ -137,7 +166,7 @@
             class="flex-1 min-h-[60px] flex flex-col relative group/header"
             class:cursor-grab={!widget.locked}
             class:active:cursor-grabbing={!widget.locked}
-            onmousedown={(e: MouseEvent) => state.startDrag(e, widget)}
+            onmousedown={(e: MouseEvent) => dashboardState.startDrag(e, widget)}
             role="button"
             tabindex="0"
             aria-label="Drag header"
@@ -145,26 +174,28 @@
             <WidgetHeader />
 
             <!-- Remove Button for Naked Header (always on right) -->
-            <button
-                onclick={() => state.removeWidget(widget.id)}
-                class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors z-[60] opacity-0 group-hover:opacity-100"
-                title="Remove component"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+            {#if !widget.locked}
+                <button
+                    onclick={() => dashboardState.removeWidget(widget.id)}
+                    class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors z-[60] opacity-0 group-hover:opacity-100"
+                    title="Remove component"
                 >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M6 18L18 6M6 6l12 12"
-                    />
-                </svg>
-            </button>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        />
+                    </svg>
+                </button>
+            {/if}
         </div>
     {:else if widget.type !== "title"}
         <div class="flex-1 min-h-0 flex flex-col px-4 pb-4">
@@ -208,16 +239,30 @@
                 <div class="flex-1 min-h-0 flex flex-col">
                     <WidgetProfile />
                 </div>
+            {:else if widget.type === "widget_manager"}
+                <div class="flex-1 min-h-0 flex flex-col">
+                    <WidgetManagerWidget {widget} state={dashboardState} />
+                </div>
+            {:else if widget.type === "client_db"}
+                <div class="flex-1 min-h-0 flex flex-col">
+                    <ClientDBWidget
+                        {widget}
+                        state={dashboardState}
+                        {isMaximized}
+                        onToggleMaximize={toggleMaximize}
+                    />
+                </div>
             {/if}
         </div>
     {/if}
 
     <!-- Resize Handles -->
-    {#if !widget.locked && widget.type !== "header"}
+    {#if !isMaximized && !widget.locked && widget.type !== "header"}
         <!-- Bottom-Right (Primary) -->
         <div
             class="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50 hover:bg-slate-100 text-slate-400 rounded-tl-xl"
-            onmousedown={(e: MouseEvent) => state.startResize(e, widget, "br")}
+            onmousedown={(e: MouseEvent) =>
+                dashboardState.startResize(e, widget, "br")}
             role="button"
             tabindex="0"
             aria-label="Resize component"
@@ -241,7 +286,8 @@
         <!-- Bottom-Left -->
         <div
             class="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50 hover:bg-slate-100 text-slate-400 rounded-tr-xl"
-            onmousedown={(e: MouseEvent) => state.startResize(e, widget, "bl")}
+            onmousedown={(e: MouseEvent) =>
+                dashboardState.startResize(e, widget, "bl")}
             role="button"
             tabindex="0"
             aria-label="Resize component"
@@ -254,7 +300,8 @@
         <!-- Top-Right -->
         <div
             class="absolute top-0 right-0 w-8 h-8 cursor-ne-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50 hover:bg-slate-100 text-slate-400 rounded-bl-xl"
-            onmousedown={(e: MouseEvent) => state.startResize(e, widget, "tr")}
+            onmousedown={(e: MouseEvent) =>
+                dashboardState.startResize(e, widget, "tr")}
             role="button"
             tabindex="0"
             aria-label="Resize component"
@@ -267,7 +314,8 @@
         <!-- Top-Left -->
         <div
             class="absolute top-0 left-0 w-8 h-8 cursor-nw-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50 hover:bg-indigo-600/20 text-indigo-600 rounded-br-xl"
-            onmousedown={(e: MouseEvent) => state.startResize(e, widget, "tl")}
+            onmousedown={(e: MouseEvent) =>
+                dashboardState.startResize(e, widget, "tl")}
             role="button"
             tabindex="0"
             aria-label="Resize component"
