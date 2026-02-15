@@ -11,6 +11,7 @@ export class DashboardState {
     isLoading = $state(true);
     showPalette = $state(false);
     searchQuery = $state("");
+    clipboard = $state<Widget | null>(null);
 
     // Grid State
     isResizing = $state(false);
@@ -144,6 +145,54 @@ export class DashboardState {
     removeWidget(id: string) {
         this.widgets = this.widgets.filter((w) => w.id !== id);
         this.save();
+    }
+
+    duplicateWidget(id: string) {
+        const original = this.widgets.find((w) => w.id === id);
+        if (original) {
+            const clone = {
+                ...$state.snapshot(original),
+                id: crypto.randomUUID(),
+                y: original.y + original.rows, // Try to place it below
+            };
+            this.widgets.push(clone);
+            this.pushWidgets(clone); // Resolve overlap
+            this.save();
+        }
+    }
+
+    copyWidget(id: string) {
+        const widget = this.widgets.find((w) => w.id === id);
+        if (widget) {
+            this.clipboard = $state.snapshot(widget);
+        }
+    }
+
+    cutWidget(id: string) {
+        this.copyWidget(id);
+        this.removeWidget(id);
+    }
+
+    pasteWidget(x: number, y: number) {
+        if (this.clipboard) {
+            const pasted = {
+                ...$state.snapshot(this.clipboard),
+                id: crypto.randomUUID(),
+                x,
+                y,
+            };
+            this.widgets.push(pasted);
+            this.pushWidgets(pasted);
+            this.save();
+        }
+    }
+
+    updateWidget(id: string, updates: Partial<Widget>) {
+        const widget = this.widgets.find((w) => w.id === id);
+        if (widget) {
+            Object.assign(widget, updates);
+            this.save();
+        }
     }
 
     // --- Metrics Cache Helper ---
@@ -361,6 +410,7 @@ export class DashboardState {
 
     // --- Context Menu ---
     handleContextMenu(e: MouseEvent, widgetId: string | null = null) {
+        this.updateMetrics();
         e.preventDefault();
         e.stopPropagation();
         this.contextMenu = {

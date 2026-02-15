@@ -93,15 +93,20 @@ export const adminState = {
         // Update local state immediately (Optimistic UI)
         menus = newOrder.map((m, i) => ({ ...m, order: i }));
 
-        const db = await ClientDB.init();
-        const tx = db.transaction('menus', 'readwrite');
+        try {
+            const db = await ClientDB.init();
+            const tx = db.transaction('menus', 'readwrite');
 
-        const updates = newOrder.map((menu, index) => {
-            const updated = { ...menu, order: index };
-            return tx.store.put(updated);
-        });
+            for (let i = 0; i < newOrder.length; i++) {
+                // Use snapshot to avoid proxy issues during persistence
+                const menu = $state.snapshot(newOrder[i]);
+                await tx.store.put({ ...menu, order: i });
+            }
 
-        await Promise.all([...updates, tx.done]);
+            await tx.done;
+        } catch (e) {
+            console.error("[AdminState] Failed to persist menu order", e);
+        }
     },
     getPostBySlugLocal(slug: string) {
         return posts.find(p => p.slug === slug);
@@ -171,77 +176,85 @@ export const adminState = {
                     tables = meta || [];
 
                     let allMenus = await clientDB.getAll('menus');
-                    if (allMenus) {
-                        // Migration 1: Ensure order exists
+                    if (allMenus && allMenus.length > 0) {
+                        let changed = false;
+
+                        // 1. Migration: Ensure order exists and fix empty items
                         allMenus.forEach((m: any, i: number) => {
+                            let menuUpdated = false;
                             if (typeof m.order !== 'number') {
                                 m.order = i;
-                                clientDB.put('menus', m).catch(() => { });
+                                menuUpdated = true;
+                            }
+                            if (!m.items || m.items.length === 0) {
+                                const slug = m.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+                                m.items = [{
+                                    id: crypto.randomUUID(),
+                                    label: m.name,
+                                    url: `/admin/${slug}`,
+                                    children: [],
+                                    isOpen: true
+                                }];
+                                menuUpdated = true;
+                            }
+                            if (menuUpdated) {
+                                changed = true;
+                                clientDB.put('menus', $state.snapshot(m)).catch(() => { });
                             }
                         });
 
-                        // Migration 2: Explode multipart menus (e.g. "MAIN NAVIGATION") 
-                        // so they become individually reorderable
-                        let exploded = false;
-                        const newMenusList: any[] = [];
-
+                        // 2. Explode multipart menus (one-time migration)
+                        const explodedItems: any[] = [];
+                        let needsExplosion = false;
                         for (const m of allMenus) {
                             if (m.items && m.items.length > 1) {
-                                exploded = true;
-                                // Explode!
-                                // Delete the original container
-                                await clientDB.delete('menus', m.id);
+                                needsExplosion = true;
+                                break;
+                            }
+                        }
 
-                                // Create individual menus for each item
-                                for (let i = 0; i < m.items.length; i++) {
-                                    const item = m.items[i];
-                                    const splitMenu = {
-                                        id: crypto.randomUUID(),
-                                        name: item.label, // Use label as name
-                                        order: (m.order || 0) + (i * 0.1), // Preserve relative order
-                                        items: [item]
-                                    };
-                                    newMenusList.push(splitMenu);
-                                    await clientDB.put('menus', splitMenu);
+                        if (needsExplosion) {
+                            const tx = clientDB.transaction('menus', 'readwrite');
+                            const finalMenus: any[] = [];
+                            for (const m of allMenus) {
+                                if (m.items && m.items.length > 1) {
+                                    await tx.store.delete(m.id);
+                                    for (let i = 0; i < m.items.length; i++) {
+                                        const item = m.items[i];
+                                        const splitMenu = {
+                                            id: crypto.randomUUID(),
+                                            name: item.label,
+                                            order: (m.order || 0) + (i * 0.1),
+                                            items: [item]
+                                        };
+                                        await tx.store.put(splitMenu);
+                                        finalMenus.push(splitMenu);
+                                    }
+                                } else {
+                                    finalMenus.push(m);
                                 }
-                            } else {
-                                newMenusList.push(m);
                             }
+                            await tx.done;
+                            allMenus = finalMenus;
                         }
 
-                        if (exploded) {
-                            allMenus = newMenusList;
-                        }
-
-                        // Migration 3: Deduplicate (Fixes Race Condition Dupes)
+                        // 3. Final deduplication and sorting
                         const uniqueMap = new Map();
-                        const duplicates: any[] = [];
+                        allMenus.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
 
-                        // Re-fetch to ensure we catch any committed duplicates
-                        const currentMenus = await clientDB.getAll('menus');
-
-                        for (const m of currentMenus) {
-                            // Key by Name and URL to separate "Dashboard" from different dashboards if they existed, 
-                            // but here we likely have identical duplicates.
+                        const deduped: any[] = [];
+                        for (const m of allMenus) {
                             const key = m.name + '|' + (m.items?.[0]?.url || '');
-                            if (uniqueMap.has(key)) {
-                                duplicates.push(m);
+                            if (!uniqueMap.has(key)) {
+                                uniqueMap.set(key, true);
+                                deduped.push(m);
                             } else {
-                                uniqueMap.set(key, m);
+                                // Background cleanup of duplicates
+                                clientDB.delete('menus', m.id).catch(() => { });
                             }
                         }
 
-                        if (duplicates.length > 0) {
-                            for (const dup of duplicates) {
-                                await clientDB.delete('menus', dup.id);
-                            }
-                            allMenus = Array.from(uniqueMap.values());
-                        } else {
-                            // Prefer latest DB state
-                            if (currentMenus.length > 0) allMenus = currentMenus;
-                        }
-
-                        menus = allMenus.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+                        menus = deduped;
                     } else {
                         menus = [];
                     }

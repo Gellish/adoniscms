@@ -15,43 +15,6 @@
     }
 
     onMount(async () => {
-        // Fast local load (safeguard)
-        await adminState.loadAllLocal();
-
-        // Migration: Fix unclickable empty menus
-        if (adminState.menus.length > 0) {
-            let changed = false;
-            for (const menu of adminState.menus) {
-                if (!menu.items || menu.items.length === 0) {
-                    const slug = menu.name
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")
-                        .replace(/[^\w-]/g, "");
-                    menu.items = [
-                        {
-                            id: crypto.randomUUID(),
-                            label: menu.name,
-                            url: `/admin/${slug}`,
-                            children: [],
-                            isOpen: true,
-                        },
-                    ];
-                    changed = true;
-                }
-            }
-            if (changed) {
-                // Save back to DB
-                const db = await (
-                    await import("$lib/client-db/core")
-                ).ClientDB.init();
-                const tx = db.transaction("menus", "readwrite");
-                for (const menu of adminState.menus) {
-                    await tx.store.put($state.snapshot(menu));
-                }
-                await tx.done;
-            }
-        }
-
         // Background API refresh
         adminState.refreshFromAPI();
         // Start real-time polling
