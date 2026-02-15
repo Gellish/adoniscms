@@ -13,6 +13,7 @@ const PostsController = () => import('#controllers/posts_controller')
 const AuthController = () => import('#controllers/auth_controller')
 const StatsController = () => import('#controllers/stats_controller')
 const EventsController = () => import('#controllers/events_controller')
+const MediaController = () => import('#controllers/media_controller')
 
 router.get('/', async () => {
     return { status: 'ok', message: 'AdonisJS Backend is Running. API is at /api' }
@@ -46,4 +47,11 @@ router.group(() => {
     router.get('/events', [EventsController, 'index'])
     router.post('/events/sync', [EventsController, 'sync'])
 
+    // Media Routes
+    router.get('/media', [MediaController, 'index'])
+    router.post('/media', [MediaController, 'store'])
+    router.delete('/media/:name', [MediaController, 'destroy'])
+
 }).prefix('api')
+
+router.get('/uploads/:name', [MediaController, 'show'])

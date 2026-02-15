@@ -8,6 +8,7 @@
     import { useAuth } from "$lib/auth.svelte";
     import { SyncEngine } from "$lib/cqrs/sync";
     import { setupCacheInterceptor } from "$lib/fetchInterceptor";
+    import FilePicker from "$lib/components/FilePicker.svelte";
 
     const auth = useAuth();
     let { children } = $props();
@@ -48,6 +49,8 @@
         </footer>
     </div>
 {/if}
+
+<FilePicker />
 
 <style>
     /* Bootstrap global styles assumed */

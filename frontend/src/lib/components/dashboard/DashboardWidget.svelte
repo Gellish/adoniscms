@@ -10,6 +10,7 @@
     import WidgetTitle from "$lib/components/dashboard/widgets/title/WidgetTitle.svelte";
     import WidgetManagerWidget from "$lib/components/dashboard/widgets/manager/WidgetManagerWidget.svelte";
     import ClientDBWidget from "$lib/components/dashboard/widgets/system/ClientDBWidget.svelte";
+    import MediaWidget from "$lib/components/dashboard/widgets/system/MediaWidget.svelte";
     import { type DashboardState } from "$lib/dashboardState.svelte";
     import type { Widget } from "$lib/components/dashboard/widgetConfig";
     import { DUMMY_POSTS } from "$lib/mockData";
@@ -104,7 +105,7 @@
         ></div>
     {/if}
 
-    {#if widget.type !== "header" && widget.type !== "widget_manager" && widget.type !== "client_db"}
+    {#if widget.type !== "header" && widget.type !== "widget_manager" && widget.type !== "client_db" && widget.type !== "media"}
         <div
             class="shrink-0 flex flex-col relative group/content"
             class:cursor-grab={!widget.locked}
@@ -250,6 +251,14 @@
                         state={dashboardState}
                         {isMaximized}
                         onToggleMaximize={toggleMaximize}
+                    />
+                </div>
+            {:else if widget.type === "media"}
+                <div class="flex-1 min-h-0 flex flex-col">
+                    <MediaWidget
+                        {widget}
+                        state={dashboardState}
+                        {isMaximized}
                     />
                 </div>
             {/if}

@@ -8,7 +8,8 @@ export type WidgetType =
     | "profile"
     | "header"
     | "widget_manager"
-    | "client_db";
+    | "client_db"
+    | "media";
 
 export interface TableWidgetData {
     tableName: string;
@@ -121,5 +122,13 @@ export const BASE_WIDGETS: PaletteItem[] = [
         description: "Create new local object stores (tables) for your offline database.",
         defaultCols: 6,
         defaultRows: 6,
+    },
+    {
+        type: "media",
+        label: "Media Library",
+        icon: "🖼️",
+        description: "Quick access to your media assets and uploads.",
+        defaultCols: 6,
+        defaultRows: 8,
     },
 ];

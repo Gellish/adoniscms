@@ -5,6 +5,7 @@
     import SelectInterface from "$interfaces/interfaces/SelectInterface.svelte";
     import BooleanInterface from "$interfaces/interfaces/BooleanInterface.svelte";
     import RichTextInterface from "$interfaces/interfaces/RichTextInterface.svelte";
+    import FileInterface from "$interfaces/interfaces/FileInterface.svelte";
 
     interface Props {
         field: FieldSchema;
@@ -20,6 +21,7 @@
         select: SelectInterface,
         boolean: BooleanInterface,
         richtext: RichTextInterface,
+        file: FileInterface,
     };
 
     let InterfaceComponent = $derived(interfaces[field.type] || InputInterface);
