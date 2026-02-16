@@ -61,18 +61,13 @@ export const adminState = {
         }, duration);
     },
     async createMenu(name: string, firstItemRoute: string = "") {
-        const db = await ClientDB.init();
         const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
         const finalRoute = firstItemRoute || `/admin/${slug}`;
 
-        // Get max order
-        const all = await db.getAll('menus');
-        const maxOrder = all.reduce((max: number, m: any) => Math.max(max, m.order || 0), 0);
-
-        const newMenu = {
+        const newMenuData = {
             id: crypto.randomUUID(),
             name,
-            order: maxOrder + 1,
+            order: menus.length,
             items: [
                 {
                     id: crypto.randomUUID(),
@@ -83,48 +78,60 @@ export const adminState = {
                 }
             ]
         };
-        await db.put('menus', newMenu);
-        // Refresh local state
-        const updatedAll = await db.getAll('menus');
-        menus = updatedAll.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
-        return newMenu;
+
+        const res = await fetch("http://localhost:3333/api/admin/menus", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newMenuData),
+            credentials: 'include'
+        });
+
+        if (res.ok) {
+            const created = await res.json();
+            menus = [...menus, created].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+            return created;
+        }
     },
     async deleteMenu(id: string) {
-        const db = await ClientDB.init();
-        await db.delete('menus', id);
-        // Refresh local state
-        const all = await db.getAll('menus');
-        menus = all || [];
+        const res = await fetch(`http://localhost:3333/api/admin/menus/${id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (res.ok) {
+            menus = menus.filter(m => m.id !== id);
+        }
     },
     async updateMenu(id: string, name: string, items: any[]) {
-        const db = await ClientDB.init();
-        const menu = await db.get('menus', id);
-        if (menu) {
-            menu.name = name;
-            menu.items = items;
-            await db.put('menus', menu);
-            // Refresh local state
-            const all = await db.getAll('menus');
-            menus = all ? all.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)) : [];
+        const res = await fetch(`http://localhost:3333/api/admin/menus/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, items }),
+            credentials: 'include'
+        });
+
+        if (res.ok) {
+            const updated = await res.json();
+            menus = menus.map(m => m.id === id ? updated : m);
         }
     },
     async reorderMenu(newOrder: any[]) {
         // Update local state immediately (Optimistic UI)
+        const oldMenus = [...menus];
         menus = newOrder.map((m, i) => ({ ...m, order: i }));
 
         try {
-            const db = await ClientDB.init();
-            const tx = db.transaction('menus', 'readwrite');
+            const res = await fetch("http://localhost:3333/api/admin/menus/reorder", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ menus: newOrder.map(m => ({ id: m.id })) }),
+                credentials: 'include'
+            });
 
-            for (let i = 0; i < newOrder.length; i++) {
-                // Use snapshot to avoid proxy issues during persistence
-                const menu = $state.snapshot(newOrder[i]);
-                await tx.store.put({ ...menu, order: i });
-            }
-
-            await tx.done;
+            if (!res.ok) throw new Error("Failed to reorder");
         } catch (e) {
             console.error("[AdminState] Failed to persist menu order", e);
+            menus = oldMenus; // Rollback
         }
     },
     getPostBySlugLocal(slug: string) {
@@ -193,90 +200,6 @@ export const adminState = {
                 if (clientDB) {
                     const meta = await clientDB.getAll('_meta');
                     tables = meta || [];
-
-                    let allMenus = await clientDB.getAll('menus');
-                    if (allMenus && allMenus.length > 0) {
-                        let changed = false;
-
-                        // 1. Migration: Ensure order exists and fix empty items
-                        allMenus.forEach((m: any, i: number) => {
-                            let menuUpdated = false;
-                            if (typeof m.order !== 'number') {
-                                m.order = i;
-                                menuUpdated = true;
-                            }
-                            if (!m.items || m.items.length === 0) {
-                                const slug = m.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
-                                m.items = [{
-                                    id: crypto.randomUUID(),
-                                    label: m.name,
-                                    url: `/admin/${slug}`,
-                                    children: [],
-                                    isOpen: true
-                                }];
-                                menuUpdated = true;
-                            }
-                            if (menuUpdated) {
-                                changed = true;
-                                clientDB.put('menus', $state.snapshot(m)).catch(() => { });
-                            }
-                        });
-
-                        // 2. Explode multipart menus (one-time migration)
-                        const explodedItems: any[] = [];
-                        let needsExplosion = false;
-                        for (const m of allMenus) {
-                            if (m.items && m.items.length > 1) {
-                                needsExplosion = true;
-                                break;
-                            }
-                        }
-
-                        if (needsExplosion) {
-                            const tx = clientDB.transaction('menus', 'readwrite');
-                            const finalMenus: any[] = [];
-                            for (const m of allMenus) {
-                                if (m.items && m.items.length > 1) {
-                                    await tx.store.delete(m.id);
-                                    for (let i = 0; i < m.items.length; i++) {
-                                        const item = m.items[i];
-                                        const splitMenu = {
-                                            id: crypto.randomUUID(),
-                                            name: item.label,
-                                            order: (m.order || 0) + (i * 0.1),
-                                            items: [item]
-                                        };
-                                        await tx.store.put(splitMenu);
-                                        finalMenus.push(splitMenu);
-                                    }
-                                } else {
-                                    finalMenus.push(m);
-                                }
-                            }
-                            await tx.done;
-                            allMenus = finalMenus;
-                        }
-
-                        // 3. Final deduplication and sorting
-                        const uniqueMap = new Map();
-                        allMenus.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
-
-                        const deduped: any[] = [];
-                        for (const m of allMenus) {
-                            const key = m.name + '|' + (m.items?.[0]?.url || '');
-                            if (!uniqueMap.has(key)) {
-                                uniqueMap.set(key, true);
-                                deduped.push(m);
-                            } else {
-                                // Background cleanup of duplicates
-                                clientDB.delete('menus', m.id).catch(() => { });
-                            }
-                        }
-
-                        menus = deduped;
-                    } else {
-                        menus = [];
-                    }
                 }
             } catch (e) {
                 // ignore
@@ -329,10 +252,11 @@ export const adminState = {
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), 2000);
 
-            const [statsRes, postsRes, usersRes] = await Promise.allSettled([
+            const [statsRes, postsRes, usersRes, menusRes] = await Promise.allSettled([
                 fetch("http://localhost:3333/api/admin/stats", { credentials: 'include', signal: controller.signal }),
                 PostService.getApiPosts(),
-                fetch("http://localhost:3333/api/admin/users", { credentials: 'include', signal: controller.signal })
+                fetch("http://localhost:3333/api/admin/users", { credentials: 'include', signal: controller.signal }),
+                fetch("http://localhost:3333/api/admin/menus", { credentials: 'include', signal: controller.signal })
             ]);
             clearTimeout(id);
 
@@ -362,6 +286,14 @@ export const adminState = {
                     users = newUsers;
                     localStorage.setItem('admin_users_cache', JSON.stringify(newUsers));
                     // Optional: persist to IDB here too if needed
+                }
+            }
+
+            // Update Menus
+            if (menusRes.status === 'fulfilled' && menusRes.value.ok) {
+                const newMenus = await menusRes.value.json();
+                if (JSON.stringify(newMenus) !== JSON.stringify(menus)) {
+                    menus = newMenus;
                 }
             }
 

@@ -14,6 +14,7 @@ const AuthController = () => import('#controllers/auth_controller')
 const StatsController = () => import('#controllers/stats_controller')
 const EventsController = () => import('#controllers/events_controller')
 const MediaController = () => import('#controllers/media_controller')
+const MenusController = () => import('#controllers/menus_controller')
 
 router.get('/', async () => {
     return { status: 'ok', message: 'AdonisJS Backend is Running. API is at /api' }
@@ -40,6 +41,13 @@ router.group(() => {
     // Admin Routes
     router.group(() => {
         router.get('/stats', [StatsController, 'index'])
+
+        // Menus Resource
+        router.get('/menus', [MenusController, 'index'])
+        router.post('/menus', [MenusController, 'store'])
+        router.put('/menus/:id', [MenusController, 'update'])
+        router.delete('/menus/:id', [MenusController, 'destroy'])
+        router.post('/menus/reorder', [MenusController, 'reorder'])
 
     }).prefix('admin')
 
