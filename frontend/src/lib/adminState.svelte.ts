@@ -22,6 +22,13 @@ let lastFetched = $state<number>(0);
 let isSyncing = $state(false);
 let isHydrating = false;
 
+interface Toast {
+    message: string;
+    type: 'success' | 'error' | 'info';
+    visible: boolean;
+}
+let toast = $state<Toast>({ message: '', type: 'success', visible: false });
+
 // Immediate Hydration from localStorage (Zero Flicker)
 if (browser) {
     const cachedStats = localStorage.getItem('admin_stats_cache');
@@ -41,6 +48,18 @@ export const adminState = {
     get tables() { return tables },
     get menus() { return menus; },
     get sidebarMenu() { return sidebarMenu },
+    get toast() { return toast },
+    showToast(message: string, type: 'success' | 'error' | 'info' = 'success', duration: number = 3000) {
+        toast.message = message;
+        toast.type = type;
+        toast.visible = true;
+
+        setTimeout(() => {
+            if (toast.message === message) {
+                toast.visible = false;
+            }
+        }, duration);
+    },
     async createMenu(name: string, firstItemRoute: string = "") {
         const db = await ClientDB.init();
         const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');

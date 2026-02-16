@@ -25,10 +25,11 @@ export class ClientDB {
     static async init(): Promise<IDBPDatabase> {
         if (this.dbInstance) return this.dbInstance;
 
-        this.dbInstance = await openDB(this.DB_NAME, 43, {
+        this.dbInstance = await openDB(this.DB_NAME, 44, {
             upgrade(db, oldVersion, newVersion, transaction) {
                 // Only create stores if they don't exist. DO NOT DELETE EXISTING DATA.
                 if (!db.objectStoreNames.contains('_meta')) db.createObjectStore('_meta', { keyPath: 'name' });
+                if (!db.objectStoreNames.contains('_schemas')) db.createObjectStore('_schemas', { keyPath: 'tableName' });
                 if (!db.objectStoreNames.contains('_syncQueue')) db.createObjectStore('_syncQueue', { keyPath: 'id' });
                 if (!db.objectStoreNames.contains('superadmin')) db.createObjectStore('superadmin', { keyPath: 'id' });
                 if (!db.objectStoreNames.contains('menus')) db.createObjectStore('menus', { keyPath: 'id' });
@@ -40,6 +41,18 @@ export class ClientDB {
         await this.seedSystemData(this.dbInstance);
         await this.ensureDefaultMenus(this.dbInstance);
         return this.dbInstance;
+    }
+
+    static async getSchema(tableName: string): Promise<any> {
+        const db = await this.init();
+        return db.get('_schemas', tableName);
+    }
+
+    static async saveSchema(tableName: string, schema: any): Promise<void> {
+        const db = await this.init();
+        const tx = db.transaction('_schemas', 'readwrite');
+        await tx.store.put({ tableName, schema, updatedAt: Date.now() });
+        await tx.done;
     }
 
     static async seedSystemData(db: IDBPDatabase): Promise<void> {
@@ -112,6 +125,11 @@ export class ClientDB {
         this.initPromise = null;
         db.close();
         await this.init();
+    }
+
+    static async listTables(): Promise<string[]> {
+        const db = await this.init();
+        return Array.from(db.objectStoreNames).filter(name => !['_meta', '_schemas', '_syncQueue'].includes(name));
     }
 
     private static async getCurrentVersion(): Promise<number> {

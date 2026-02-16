@@ -1,3 +1,4 @@
+
 export interface User {
     id: number;
     email: string;
@@ -31,7 +32,7 @@ export interface Event {
     timestamp: string;
 }
 
-export type InterfaceType = 'input' | 'textarea' | 'select' | 'boolean' | 'richtext';
+export type InterfaceType = 'input' | 'textarea' | 'select' | 'boolean' | 'richtext' | 'relation' | 'file';
 
 export interface FieldSchema {
     field: string;
@@ -39,7 +40,12 @@ export interface FieldSchema {
     type: InterfaceType;
     placeholder?: string;
     options?: { label: string; value: any }[];
+    group?: string;
     meta?: Record<string, any>;
+    relation?: {
+        table: string;
+        displayField: string;
+    };
 }
 
 export interface MenuItem {

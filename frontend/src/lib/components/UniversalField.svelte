@@ -6,6 +6,7 @@
     import BooleanInterface from "$interfaces/interfaces/BooleanInterface.svelte";
     import RichTextInterface from "$interfaces/interfaces/RichTextInterface.svelte";
     import FileInterface from "$interfaces/interfaces/FileInterface.svelte";
+    import RelationInterface from "$interfaces/interfaces/RelationInterface.svelte";
 
     interface Props {
         field: FieldSchema;
@@ -22,6 +23,7 @@
         boolean: BooleanInterface,
         richtext: RichTextInterface,
         file: FileInterface,
+        relation: RelationInterface,
     };
 
     let InterfaceComponent = $derived(interfaces[field.type] || InputInterface);
@@ -48,6 +50,13 @@
                     : 'translate-x-0'}"
             ></span>
         </button>
+    {:else if field.type === "relation"}
+        <RelationInterface
+            {value}
+            placeholder={field.placeholder}
+            relation={field.relation}
+            {onchange}
+        />
     {:else}
         <InterfaceComponent
             {value}

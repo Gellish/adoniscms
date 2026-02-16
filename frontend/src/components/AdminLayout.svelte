@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { fade, scale } from "svelte/transition";
     import { page } from "$app/state";
     import { useAuth } from "$lib/auth.svelte";
     import { goto } from "$app/navigation";
@@ -28,6 +29,18 @@
     let showNewMenuModal = $state(false);
     let newMenuName = $state("");
     let newMenuRoute = $state("");
+    let isRouteManuallyEdited = $state(false);
+
+    // Auto-generate route from name while typing
+    $effect(() => {
+        if (!isRouteManuallyEdited && showNewMenuModal) {
+            newMenuRoute = newMenuName
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, "-")
+                .replace(/[^\w-]/g, "");
+        }
+    });
 
     async function handleCreateMenu() {
         if (!newMenuName.trim()) return;
@@ -35,8 +48,12 @@
         // If they provided a route, we can seed it or handle it
         await adminState.createMenu(newMenuName, newMenuRoute);
 
+        // Show success signal!
+        adminState.showToast(`Menu "${newMenuName}" created!`, "success");
+
         newMenuName = "";
         newMenuRoute = "";
+        isRouteManuallyEdited = false;
         showNewMenuModal = false;
     }
 
@@ -285,7 +302,13 @@
     {#if showNewMenuModal}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="modal-overlay" onclick={() => (showNewMenuModal = false)}>
+        <div
+            class="modal-overlay"
+            onclick={() => {
+                showNewMenuModal = false;
+                isRouteManuallyEdited = false;
+            }}
+        >
             <div class="modal-content" onclick={(e) => e.stopPropagation()}>
                 <div class="modal-header">
                     <div class="header-content">
@@ -341,6 +364,7 @@
                             type="text"
                             bind:value={newMenuRoute}
                             placeholder="route"
+                            oninput={() => (isRouteManuallyEdited = true)}
                             onkeydown={(e) =>
                                 e.key === "Enter" && handleCreateMenu()}
                         />
@@ -582,12 +606,42 @@
                 Delete Menu
             </button>
         </div>
-        <!-- Global click listener to close context menu -->
         <div
             class="fixed inset-0 z-[9998]"
             onclick={closeContextMenu}
             role="presentation"
         ></div>
+    {/if}
+
+    <!-- Centered Global Success Toast -->
+    {#if adminState.toast.visible}
+        <div
+            class="fixed inset-0 pointer-events-none flex items-center justify-center z-[10000]"
+            transition:fade={{ duration: 200 }}
+        >
+            <div
+                class="bg-emerald-600 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4 transform -translate-y-12"
+                transition:scale={{ start: 0.9, duration: 300 }}
+            >
+                <div class="bg-white/20 p-2 rounded-xl">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        ><polyline points="20 6 9 17 4 12"></polyline></svg
+                    >
+                </div>
+                <span class="text-lg font-black uppercase tracking-tighter"
+                    >{adminState.toast.message}</span
+                >
+            </div>
+        </div>
     {/if}
 </div>
 
@@ -848,28 +902,33 @@
     .btn-create {
         padding: 0.875rem 2rem;
         border-radius: 16px;
-        font-weight: 700;
+        font-weight: 800;
         color: white;
-        background: #bdbdbd;
+        background: #10b981; /* Emerald 500 */
         border: none;
         cursor: pointer;
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        text-transform: uppercase;
+        letter-spacing: -0.01em;
+        font-size: 0.75rem;
     }
     .btn-create:hover:not(:disabled) {
-        transform: translateY(-2px);
-        background: #acacac;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px) scale(1.02);
+        background: #059669; /* Emerald 600 */
+        box-shadow: 0 12px 20px -3px rgba(16, 185, 129, 0.3);
     }
     .btn-create:active:not(:disabled) {
-        transform: translateY(0);
+        transform: translateY(0) scale(0.98);
     }
     .btn-create:disabled {
-        opacity: 0.5;
+        background: #d1d5db;
+        color: #9ca3af;
         cursor: not-allowed;
+        box-shadow: none;
     }
 
     @keyframes fadeIn {
