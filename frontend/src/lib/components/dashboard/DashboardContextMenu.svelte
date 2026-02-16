@@ -161,9 +161,7 @@
                     {/if}
                 </div>
                 <span>
-                    {targetWidget?.locked
-                        ? "Unlock Component"
-                        : "Lock Component"}
+                    {targetWidget?.locked ? "Unlock" : "Lock"}
                 </span>
             </button>
 
@@ -304,7 +302,7 @@
                         />
                     </svg>
                 </div>
-                Remove Component
+                Delete
             </button>
         {:else}
             <!-- Add New (Empty Area Click) -->
