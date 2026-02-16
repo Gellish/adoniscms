@@ -606,6 +606,8 @@
                 Delete Menu
             </button>
         </div>
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
             class="fixed inset-0 z-[9998]"
             onclick={closeContextMenu}
@@ -699,10 +701,6 @@
     .nav-item.active {
         background: #6c5ce7;
         color: white;
-    }
-    .nav-item.secondary {
-        margin-top: auto;
-        color: #b2bec3;
     }
     .add-nav-btn {
         width: 100%;
