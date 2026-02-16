@@ -22,10 +22,6 @@
         adminState.startPolling();
     });
 
-    function handleLogout() {
-        auth.logout();
-    }
-
     let showNewMenuModal = $state(false);
     let newMenuName = $state("");
     let newMenuRoute = $state("");
@@ -283,17 +279,6 @@
     </aside>
 
     <div class="main-content">
-        {#if !isDashboard}
-            <header class="top-nav">
-                <div class="user-info">
-                    <span>{auth.user?.fullName}</span>
-                    <button onclick={handleLogout} class="logout-btn"
-                        >Logout</button
-                    >
-                </div>
-            </header>
-        {/if}
-
         <main class="page-body" class:is-dashboard={isDashboard}>
             {@render children()}
         </main>
@@ -723,27 +708,6 @@
         display: flex;
         flex-direction: column;
         background: white;
-    }
-    .top-nav {
-        height: 60px;
-        background: white;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        padding: 0 2rem;
-    }
-    .user-info {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-    .logout-btn {
-        background: none;
-        border: 1px solid #ddd;
-        padding: 4px 8px;
-        border-radius: 4px;
-        cursor: pointer;
     }
     .page-body {
         padding: 2rem;
