@@ -32,7 +32,7 @@ export interface Event {
     timestamp: string;
 }
 
-export type InterfaceType = 'input' | 'textarea' | 'select' | 'boolean' | 'richtext' | 'relation' | 'file';
+export type InterfaceType = 'input' | 'textarea' | 'select' | 'boolean' | 'richtext' | 'relation' | 'file' | 'date';
 
 export interface FieldSchema {
     field: string;

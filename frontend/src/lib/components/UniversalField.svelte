@@ -7,6 +7,7 @@
     import RichTextInterface from "$interfaces/interfaces/RichTextInterface.svelte";
     import FileInterface from "$interfaces/interfaces/FileInterface.svelte";
     import RelationInterface from "$interfaces/interfaces/RelationInterface.svelte";
+    import DateInterface from "$interfaces/interfaces/DateInterface.svelte";
 
     interface Props {
         field: FieldSchema;
@@ -24,6 +25,7 @@
         richtext: RichTextInterface,
         file: FileInterface,
         relation: RelationInterface,
+        date: DateInterface,
     };
 
     let InterfaceComponent = $derived(interfaces[field.type] || InputInterface);
