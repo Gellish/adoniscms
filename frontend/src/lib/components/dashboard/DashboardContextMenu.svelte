@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { fade, scale } from "svelte/transition";
+    import { fade, slide, scale } from "svelte/transition";
     import { type DashboardState } from "$lib/dashboardState.svelte";
     import { adminState } from "$lib/adminState.svelte";
 
@@ -69,7 +69,13 @@
     let editingTitle = $state(false);
     let tempTitle = $state("");
     let tempTableName = $state("");
+    let activeTab = $state("properties");
     let tempPeekMode = $state("center");
+    let tempBorderRadius = $state<any>("default");
+    let tempBackgroundMode = $state<any>("glass");
+    let tempOpacity = $state(100);
+    let tempLayout = $state("block");
+    let tempDirection = $state("col");
 
     function openSettings() {
         if (dashboardState.contextMenu.widgetId) {
@@ -80,10 +86,19 @@
                 tempTitle = widget.title || "";
                 tempTableName = widget.data?.tableName || "";
                 tempPeekMode = widget.settings?.peekMode || "center";
+                tempBorderRadius = widget.settings?.borderRadius || "default";
+                tempBackgroundMode = widget.settings?.backgroundMode || "glass";
+                tempOpacity = widget.settings?.opacity ?? 100;
+                tempLayout = widget.settings?.layout || "block";
+                tempDirection = widget.settings?.direction || "col";
+                tempGap = widget.settings?.gap ?? 0;
                 editingTitle = true;
+                activeTab = "properties";
             }
         }
     }
+
+    let tempGap = $state(0);
 
     function saveSettings() {
         if (dashboardState.contextMenu.widgetId) {
@@ -91,14 +106,22 @@
                 (w: any) => w.id === dashboardState.contextMenu.widgetId,
             );
             if (widget) {
-                const updates: any = { title: tempTitle };
+                const updates: any = { 
+                    title: tempTitle,
+                    settings: {
+                        ...widget.settings,
+                        peekMode: tempPeekMode,
+                        borderRadius: tempBorderRadius,
+                        backgroundMode: tempBackgroundMode,
+                        opacity: tempOpacity,
+                        layout: tempLayout,
+                        direction: tempDirection,
+                        gap: tempGap,
+                    }
+                };
 
                 if (widget.type === "table") {
                     updates.data = { ...widget.data, tableName: tempTableName };
-                    updates.settings = {
-                        ...widget.settings,
-                        peekMode: tempPeekMode,
-                    };
                 }
 
                 dashboardState.updateWidget(
@@ -383,126 +406,275 @@
             {/if}
         {/if}
     </div>
-
-    <!-- Settings Modal (Title Edit) -->
     {#if editingTitle}
         {@const targetWidget = dashboardState.widgets.find(
             (w: any) => w.id === dashboardState.contextMenu.widgetId,
         )}
         <div
-            class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+            class="fixed inset-0 z-[200] flex justify-end bg-slate-900/20 backdrop-blur-[2px]"
             transition:fade
+            onclick={() => (editingTitle = false)}
+            role="presentation"
         >
             <div
-                class="bg-white rounded-2xl shadow-2xl p-6 w-[350px] border border-slate-100"
-                transition:scale={{ start: 0.9, duration: 200 }}
+                class="bg-white w-[400px] h-full shadow-[-32px_0_64px_rgba(0,0,0,0.1)] border-l border-slate-200 flex flex-col overflow-hidden"
+                transition:slide={{ axis: 'x', duration: 300 }}
+                onclick={(e) => e.stopPropagation()}
+                role="region"
             >
-                <h3
-                    class="text-sm font-black text-slate-800 uppercase tracking-tighter mb-4"
-                >
-                    Widget Settings
-                </h3>
-
-                <div class="space-y-4">
-                    <div>
-                        <label
-                            for="widget-title-input"
-                            class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5"
-                            >Widget Title</label
+                <!-- Panel Header -->
+                <div class="px-6 py-8 border-b border-slate-100 flex flex-col gap-4 bg-slate-50/50">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-black text-slate-800 uppercase tracking-tighter flex items-center gap-2">
+                            <span class="w-6 h-6 bg-indigo-600 rounded flex items-center justify-center text-white text-[10px]">🎨</span>
+                            Element Styles
+                        </h3>
+                        <button 
+                            onclick={() => editingTitle = false}
+                            class="text-slate-400 hover:text-slate-900 transition-colors"
                         >
-                        <input
-                            id="widget-title-input"
-                            type="text"
-                            bind:value={tempTitle}
-                            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                            placeholder="Enter title..."
-                        />
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
                     </div>
 
-                    {#if targetWidget?.type === "table"}
-                        <div>
-                            <label
-                                for="data-source-select"
-                                class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5"
-                                >Data Source (Table)</label
-                            >
-                            <select
-                                id="data-source-select"
-                                bind:value={tempTableName}
-                                class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-                            >
-                                <option value="posts">Posts (Official)</option>
-                                <option value="users">Users (Official)</option>
-                                <div class="h-px bg-slate-200 my-1"></div>
-                                {#each adminState.tables as table}
-                                    <option value={table.name}
-                                        >{table.name} (Custom)</option
-                                    >
-                                {/each}
-                            </select>
-                        </div>
+                    <!-- Selection Display -->
+                    <div class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 text-[10px] font-mono text-slate-500">
+                        <span class="text-indigo-600 font-bold">#</span>
+                        <span class="truncate">{targetWidget?.id}</span>
+                        <span class="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-bold uppercase ml-auto">.{targetWidget?.type}</span>
+                    </div>
 
-                        <div>
-                            <label
-                                for="peek-mode-select"
-                                class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5"
-                                >Peek Mode (Editing)</label
-                            >
-                            <div class="grid grid-cols-3 gap-2">
-                                <button
-                                    onclick={() => (tempPeekMode = "center")}
-                                    class="px-2 py-2 rounded-lg border text-[9px] font-black uppercase tracking-tighter transition-all {tempPeekMode ===
-                                    'center'
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 font-bold'
-                                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}"
-                                >
-                                    Center
-                                </button>
-                                <button
-                                    onclick={() => (tempPeekMode = "side")}
-                                    class="px-2 py-2 rounded-lg border text-[9px] font-black uppercase tracking-tighter transition-all {tempPeekMode ===
-                                    'side'
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 font-bold'
-                                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}"
-                                >
-                                    Side
-                                </button>
-                                <button
-                                    onclick={() => (tempPeekMode = "full")}
-                                    class="px-2 py-2 rounded-lg border text-[9px] font-black uppercase tracking-tighter transition-all {tempPeekMode ===
-                                    'full'
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 font-bold'
-                                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}"
-                                >
-                                    Full
-                                </button>
-                            </div>
-                        </div>
-
-                        <p
-                            class="mt-2 text-[9px] font-medium text-slate-400 leading-relaxed italic"
+                    <!-- Tabs -->
+                    <div class="p-1 bg-slate-200/50 rounded-xl grid grid-cols-2 gap-1 mt-2">
+                        <button 
+                            onclick={() => activeTab = "properties"}
+                            class="py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {activeTab === 'properties' ? 'bg-white text-indigo-600 shadow-sm shadow-black/5' : 'text-slate-500 hover:text-slate-800'}"
                         >
-                            Peek mode controls how records are displayed when
-                            editing. Side panel is great for quick edits.
-                        </p>
+                            Properties
+                        </button>
+                        <button 
+                            onclick={() => activeTab = "styles"}
+                            class="py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {activeTab === 'styles' ? 'bg-white text-indigo-600 shadow-sm shadow-black/5' : 'text-slate-500 hover:text-slate-800'}"
+                        >
+                            Styles
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel Content -->
+                <div class="flex-1 overflow-y-auto px-6 py-8 space-y-12">
+                    {#if activeTab === 'properties'}
+                        <div class="space-y-8" in:fade>
+                            <!-- General -->
+                            <section>
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                    General Configuration
+                                </h4>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="side-widget-title" class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">Display Title</label>
+                                        <input
+                                            id="side-widget-title"
+                                            type="text"
+                                            bind:value={tempTitle}
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                        />
+                                    </div>
+
+                                    {#if targetWidget?.type === "table"}
+                                        <div>
+                                            <label for="side-data-source" class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">Data Source</label>
+                                            <select
+                                                id="side-data-source"
+                                                bind:value={tempTableName}
+                                                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none cursor-pointer"
+                                            >
+                                                <option value="posts">Posts (System)</option>
+                                                <option value="users">Users (System)</option>
+                                                {#each adminState.tables as table}
+                                                    <option value={table.name}>{table.name} (Custom)</option>
+                                                {/each}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-4">Editing Interface (Peek)</label>
+                                            <div class="grid grid-cols-3 gap-2">
+                                                {#each ["center", "side", "full"] as mode}
+                                                    <button
+                                                        onclick={() => (tempPeekMode = mode)}
+                                                        class="aspect-square rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all {tempPeekMode === mode ? 'bg-indigo-50 border-indigo-600 text-indigo-700 shadow-lg shadow-indigo-100' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}"
+                                                    >
+                                                        <div class="w-6 h-4 border border-current rounded-sm flex items-center justify-center opacity-40">
+                                                            <div class="w-2 h-2 bg-current rounded-full"></div>
+                                                        </div>
+                                                        <span class="text-[9px] font-black uppercase tracking-tighter">{mode}</span>
+                                                    </button>
+                                                {/each}
+                                            </div>
+                                        </div>
+                                    {/if}
+                                </div>
+                            </section>
+                        </div>
+                    {:else}
+                        <div class="space-y-12" in:fade>
+                            <!-- Layout Section -->
+                            <section>
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <span class="w-1 h-1 bg-indigo-400 rounded-full"></span>
+                                    Layout
+                                </h4>
+                                
+                                <div class="space-y-6">
+                                    <!-- Display Mode -->
+                                    <div>
+                                        <span class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-4">Display Mode</span>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <button
+                                                onclick={() => (tempLayout = "block")}
+                                                class="px-4 py-3 rounded-xl border flex items-center gap-3 transition-all {tempLayout === 'block' ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}"
+                                            >
+                                                <div class="w-4 h-4 border-2 border-current rounded-sm flex flex-col gap-0.5 p-0.5 opacity-60">
+                                                    <div class="w-full h-1 bg-current rounded-3xl"></div>
+                                                    <div class="w-full h-1 bg-current rounded-3xl"></div>
+                                                </div>
+                                                <span class="text-[9px] font-black uppercase tracking-widest">Block</span>
+                                            </button>
+                                            <button
+                                                onclick={() => (tempLayout = "flex")}
+                                                class="px-4 py-3 rounded-xl border flex items-center gap-3 transition-all {tempLayout === 'flex' ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}"
+                                            >
+                                                <div class="w-4 h-4 border-2 border-current rounded-sm flex items-center gap-0.5 p-0.5 opacity-60">
+                                                    <div class="w-1 h-full bg-current rounded-3xl"></div>
+                                                    <div class="w-1 h-full bg-current rounded-3xl"></div>
+                                                </div>
+                                                <span class="text-[9px] font-black uppercase tracking-widest">Flex</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Direction (only if Flex) -->
+                                    {#if tempLayout === 'flex'}
+                                        <div in:slide>
+                                            <span class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-4">Direction</span>
+                                            <div class="grid grid-cols-4 gap-2">
+                                                {#each ["row", "col", "row-reverse", "col-reverse"] as dir}
+                                                    <button
+                                                        onclick={() => (tempDirection = dir)}
+                                                        class="aspect-square rounded-xl border flex items-center justify-center transition-all {tempDirection === dir ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}"
+                                                        title={dir}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform {dir.includes('row') ? '' : 'rotate-90'} {dir.includes('reverse') ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fill-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                        </svg>
+                                                    </button>
+                                                {/each}
+                                            </div>
+                                        </div>
+                                    {/if}
+                                </div>
+                            </section>
+
+                            <!-- Aesthetics Section -->
+                            <section>
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <span class="w-1 h-1 bg-indigo-400 rounded-full"></span>
+                                    Aesthetics
+                                </h4>
+                                
+                                <div class="space-y-8">
+                                    <!-- Rounding -->
+                                    <div>
+                                        <span class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-4">Corner Rounding (Radius)</span>
+                                        <div class="grid grid-cols-4 gap-2">
+                                            {#each ["none", "default", "lg", "full"] as r}
+                                                <button
+                                                    onclick={() => (tempBorderRadius = r)}
+                                                    class="px-2 py-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all {tempBorderRadius === r ? 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'}"
+                                                >
+                                                    <div class="w-6 h-6 border-t-2 border-l-2 border-current 
+                                                        {r === 'none' ? 'rounded-none' : 
+                                                         r === 'default' ? 'rounded-tl-[8px]' : 
+                                                         r === 'lg' ? 'rounded-tl-[16px]' : 'rounded-full'}"
+                                                    ></div>
+                                                    <span class="text-[8px] font-black uppercase tracking-widest">{r}</span>
+                                                </button>
+                                            {/each}
+                                        </div>
+                                    </div>
+
+                                    <!-- Background Mode -->
+                                    <div>
+                                        <span class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-4">Background Mode</span>
+                                        <div class="p-1 bg-slate-100 rounded-2xl grid grid-cols-3 gap-1">
+                                            {#each ["glass", "solid", "transparent"] as mode}
+                                                <button
+                                                    onclick={() => (tempBackgroundMode = mode)}
+                                                    class="py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all {tempBackgroundMode ===  mode ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}"
+                                                >
+                                                    {mode}
+                                                </button>
+                                            {/each}
+                                        </div>
+                                    </div>
+
+                                    <!-- Opacity -->
+                                    <div>
+                                        <div class="flex justify-between items-center mb-4">
+                                            <label for="sidebar-opacity" class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider">Background Opacity</label>
+                                            <span class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">{tempOpacity}%</span>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <div class="absolute inset-0 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-indigo-600" style="width: {tempOpacity}%"></div>
+                                            </div>
+                                            <input
+                                                id="sidebar-opacity"
+                                                type="range"
+                                                min="0"
+                                                max="100"
+                                                step="5"
+                                                bind:value={tempOpacity}
+                                                class="relative w-full h-1.5 bg-transparent appearance-none cursor-pointer z-10 accent-indigo-600"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- Future Section Placeholder -->
+                            <section class="opacity-30 pointer-events-none grayscale">
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                    Layout (Beta)
+                                </h4>
+                                <div class="p-6 border-4 border-dashed border-slate-100 rounded-[32px] text-center">
+                                    <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest">More styling options coming soon</span>
+                                </div>
+                            </section>
+                        </div>
                     {/if}
                 </div>
 
-                <div class="flex items-center justify-end gap-2 mt-6">
+                <!-- Footer -->
+                <div class="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center gap-3">
                     <button
                         onclick={() => (editingTitle = false)}
-                        class="px-4 py-2 rounded-lg text-xs font-black text-slate-500 uppercase tracking-widest hover:bg-slate-100 transition-all"
+                        class="flex-1 py-4 rounded-2xl text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-200 transition-all"
                     >
-                        Cancel
+                        Discard
                     </button>
                     <button
                         onclick={saveSettings}
-                        class="px-4 py-2 bg-indigo-600 rounded-lg text-xs font-black text-white uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all"
+                        class="flex-[2] py-4 bg-indigo-600 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest shadow-xl shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all"
                     >
-                        Save Changes
+                        Apply Changes
                     </button>
                 </div>
             </div>
         </div>
     {/if}
-{/if}

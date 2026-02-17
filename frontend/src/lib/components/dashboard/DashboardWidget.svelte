@@ -281,14 +281,14 @@
 </script>
 
 <div
-    class="transition-all duration-500 relative flex flex-col group overflow-hidden {widget.type !==
+    class="transition-all duration-500 relative flex group overflow-hidden {widget.type !==
         'title' && widget.type !== 'header'
         ? widget.settings?.backgroundMode === 'solid'
             ? 'bg-white border border-slate-200'
             : widget.settings?.backgroundMode === 'transparent'
               ? 'bg-transparent border border-transparent'
               : 'bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)]'
-        : ''}"
+        : ''} {widget.settings?.layout === 'flex' ? 'flex' : 'flex-col'}"
     class:hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]={widget.type !==
         "title" && widget.type !== "header"}
     class:hover:-translate-y-1={widget.type !== "title" &&
@@ -303,16 +303,18 @@
     style={isMaximized
         ? "position: fixed; inset: 1rem; z-index: 100; height: auto;"
         : `grid-column: ${widget.x + 1} / span ${widget.cols || 4}; grid-row: ${widget.y + 1} / span ${widget.rows || 1}; min-height: 60px; 
-           border-radius: ${
-               widget.settings?.borderRadius === "none"
-                   ? "0"
-                   : widget.settings?.borderRadius === "lg"
-                     ? "1rem"
-                     : widget.settings?.borderRadius === "full"
-                       ? "9999px"
-                       : "2.5rem"
-           };
-           opacity: ${(widget.settings?.opacity ?? 100) / 100};`}
+                       border-radius: ${
+                           widget.settings?.borderRadius === "none"
+                               ? "0"
+                               : widget.settings?.borderRadius === "lg"
+                                 ? "1rem"
+                                 : widget.settings?.borderRadius === "full"
+                                   ? "9999px"
+                                   : "2.5rem"
+                       };
+                       opacity: ${(widget.settings?.opacity ?? 100) / 100};
+                       gap: ${widget.settings?.gap ?? 0}px;
+                       flex-direction: ${widget.settings?.direction || "column"};`}
     class:z-50={!isMaximized &&
         (dashboardState.resizingWidget?.id === widget.id ||
             dashboardState.draggingWidget?.id === widget.id)}

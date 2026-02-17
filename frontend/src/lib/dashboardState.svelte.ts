@@ -82,6 +82,13 @@ export class DashboardState {
             const config = await db.get("dashboards", this.slug);
             if (config && config.widgets) {
                 this.widgets = config.widgets;
+
+                // Migration: Auto-expand full-width widgets from 22 to 24 cols
+                this.widgets.forEach(w => {
+                    if (w.cols === 22 && w.x === 0) {
+                        w.cols = GRID_COLS;
+                    }
+                });
             }
         } catch (e) {
             console.error("Failed to load dashboard config", e);
