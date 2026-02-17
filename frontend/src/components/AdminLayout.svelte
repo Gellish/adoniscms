@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { fade, scale } from "svelte/transition";
+    import { fade, scale, fly } from "svelte/transition";
     import { page } from "$app/state";
     import { useAuth } from "$lib/auth.svelte";
     import { goto } from "$app/navigation";
@@ -600,33 +600,74 @@
         ></div>
     {/if}
 
-    <!-- Centered Global Success Toast -->
+    <!-- Dynamic Global Toast -->
     {#if adminState.toast.visible}
         <div
-            class="fixed inset-0 pointer-events-none flex items-center justify-center z-[10000]"
-            transition:fade={{ duration: 200 }}
+            class="fixed bottom-12 left-1/2 -translate-x-1/2 pointer-events-none z-[10000]"
+            transition:fly={{ y: 20, duration: 400 }}
         >
             <div
-                class="bg-emerald-600 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4 transform -translate-y-12"
-                transition:scale={{ start: 0.9, duration: 300 }}
+                class="flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-md border animate-in fade-in slide-in-from-bottom-4 duration-300
+                {adminState.toast.type === 'success'
+                    ? 'bg-emerald-500/90 border-emerald-400/50 text-white'
+                    : adminState.toast.type === 'error'
+                      ? 'bg-rose-500/90 border-rose-400/50 text-white'
+                      : 'bg-indigo-600/90 border-indigo-400/50 text-white'}"
             >
-                <div class="bg-white/20 p-2 rounded-xl">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        ><polyline points="20 6 9 17 4 12"></polyline></svg
-                    >
-                </div>
-                <span class="text-lg font-black uppercase tracking-tighter"
-                    >{adminState.toast.message}</span
+                <div
+                    class="flex-shrink-0 w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center"
                 >
+                    {#if adminState.toast.type === "success"}
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><polyline points="20 6 9 17 4 12"></polyline></svg
+                        >
+                    {:else if adminState.toast.type === "error"}
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+                        >
+                    {:else}
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><circle cx="12" cy="12" r="10" /><line
+                                x1="12"
+                                x2="12"
+                                y1="16"
+                                y2="12"
+                            /><line x1="12" x2="12.01" y1="8" y2="8" /></svg
+                        >
+                    {/if}
+                </div>
+                <span
+                    class="text-xs font-black uppercase tracking-widest whitespace-nowrap"
+                >
+                    {adminState.toast.message}
+                </span>
             </div>
         </div>
     {/if}

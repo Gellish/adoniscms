@@ -140,27 +140,85 @@
             dashboardState.draggingWidget?.id === widget.id,
     );
 
+    async function handleRowUpdate(row: any, updates: any) {
+        const tableName =
+            widget.data?.tableName ||
+            (widget.type === "posts" ? "posts" : null);
+        if (!tableName) return;
+
+        try {
+            const updatedRow = {
+                ...row,
+                ...updates,
+                updated_at: new Date().toISOString(),
+            };
+
+            if (tableName === "posts") {
+                // System Posts Update
+                const idx = adminState.posts.findIndex(
+                    (p) => String(p.id) === String(row.id),
+                );
+                if (idx !== -1) {
+                    adminState.posts[idx] = $state.snapshot(updatedRow);
+                    adminState.showToast("Post updated", "success");
+                }
+            } else {
+                // Custom Table Update
+                const db = await ClientDB.init();
+                const tx = db.transaction(tableName as any, "readwrite");
+                await tx.store.put($state.snapshot(updatedRow));
+                await tx.done;
+
+                await SyncEngine.logOperation({
+                    table: tableName,
+                    action: "update",
+                    payload: $state.snapshot(updatedRow),
+                });
+
+                adminState.showToast("Record updated", "success");
+            }
+        } catch (e) {
+            console.error("Failed to update row:", e);
+            adminState.showToast("Update failed", "error");
+        }
+    }
+
     const POST_COLUMNS = [
-        { key: "title", label: "Title" },
+        { key: "title", label: "Title", width: "100%" },
         {
             key: "status",
             label: "Status",
+            width: "140px",
+            onclick: (row: any) => {
+                const newStatus =
+                    row.status === "published" ? "draft" : "published";
+                handleRowUpdate(row, { status: newStatus });
+            },
             render: (row: any) => {
                 if (!row) return "";
-                return `<span class="px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-widest ${row.status === "published" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}">${row.status || "Draft"}</span>`;
+                const isPublished = row.status === "published";
+                return `
+                    <button class="flex items-center gap-2 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 border
+                        ${
+                            isPublished
+                                ? "bg-emerald-500/5 text-emerald-600 border-emerald-500/10 hover:bg-emerald-500/10"
+                                : "bg-slate-500/5 text-slate-500 border-slate-500/10 hover:bg-slate-500/10"
+                        }">
+                        <span class="w-1.5 h-1.5 rounded-full ${isPublished ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-400"}"></span>
+                        ${row.status || "draft"}
+                    </button>`;
             },
         },
         {
-            key: "publishedAt",
+            key: "created_at",
             label: "Date",
             align: "right",
+            width: "120px",
             render: (row: any) => {
                 if (!row) return "";
-                return row.publishedAt || row.updatedAt
-                    ? new Date(
-                          row.publishedAt || row.updatedAt,
-                      ).toLocaleDateString()
-                    : "—";
+                const dateVal =
+                    row.created_at || row.updated_at || row.publishedAt;
+                return dateVal ? new Date(dateVal).toLocaleDateString() : "—";
             },
         },
     ];
@@ -223,24 +281,17 @@
 </script>
 
 <div
-    class="rounded-xl transition-all duration-200 relative flex flex-col group"
+    class="rounded-[2.5rem] transition-all duration-500 relative flex flex-col group overflow-hidden {widget.type !==
+        'title' && widget.type !== 'header'
+        ? 'bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)] hover:-translate-y-1'
+        : ''}"
     oncontextmenu={(e) => dashboardState.handleContextMenu(e, widget.id)}
     role="region"
     aria-label="{widget.title} widget"
-    class:bg-white={widget.type !== "title" && widget.type !== "header"}
-    class:border={widget.type !== "title" && widget.type !== "header"}
     class:border-dashed={widget.type === "header"}
     class:border-indigo-300={widget.type === "header"}
     class:border-opacity-0={widget.type === "header"}
     class:group-hover:border-opacity-100={widget.type === "header"}
-    class:border-slate-200={widget.type !== "title" && widget.type !== "header"}
-    class:shadow-sm={!isMaximized &&
-        widget.type !== "title" &&
-        widget.type !== "header"}
-    class:hover:shadow-xl={!isMaximized &&
-        widget.type !== "title" &&
-        widget.type !== "header"}
-    class:overflow-hidden={widget.type !== "title" && widget.type !== "header"}
     style={isMaximized
         ? "position: fixed; inset: 1rem; z-index: 100; height: auto;"
         : `grid-column: ${widget.x + 1} / span ${widget.cols || 4}; grid-row: ${widget.y + 1} / span ${widget.rows || 1}; min-height: 60px;`}
@@ -389,6 +440,7 @@
                             columns={tableColumns()}
                             onedit={handleEdit}
                             ondelete={handleDelete}
+                            onrowupdate={handleRowUpdate}
                             onconfigure={() => (showSchemaDesigner = true)}
                         />
                     </div>
