@@ -448,24 +448,33 @@
                                 class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5"
                                 >Peek Mode (Editing)</label
                             >
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-3 gap-2">
                                 <button
                                     onclick={() => (tempPeekMode = "center")}
-                                    class="px-3 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all {tempPeekMode ===
+                                    class="px-2 py-2 rounded-lg border text-[9px] font-black uppercase tracking-tighter transition-all {tempPeekMode ===
                                     'center'
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
+                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 font-bold'
                                         : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}"
                                 >
-                                    Center Modal
+                                    Center
                                 </button>
                                 <button
                                     onclick={() => (tempPeekMode = "side")}
-                                    class="px-3 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all {tempPeekMode ===
+                                    class="px-2 py-2 rounded-lg border text-[9px] font-black uppercase tracking-tighter transition-all {tempPeekMode ===
                                     'side'
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
+                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 font-bold'
                                         : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}"
                                 >
-                                    Side Panel
+                                    Side
+                                </button>
+                                <button
+                                    onclick={() => (tempPeekMode = "full")}
+                                    class="px-2 py-2 rounded-lg border text-[9px] font-black uppercase tracking-tighter transition-all {tempPeekMode ===
+                                    'full'
+                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 font-bold'
+                                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}"
+                                >
+                                    Full
                                 </button>
                             </div>
                         </div>

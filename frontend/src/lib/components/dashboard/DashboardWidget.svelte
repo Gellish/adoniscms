@@ -1,5 +1,6 @@
 <script lang="ts">
     import { slide, fade, scale, fly } from "svelte/transition";
+    import { goto } from "$app/navigation";
     import SchemaDesigner from "$lib/components/SchemaDesigner.svelte";
     import WidgetTable from "$lib/components/dashboard/widgets/table/WidgetTable.svelte";
     import WidgetProfile from "$lib/components/dashboard/widgets/profile/WidgetProfile.svelte";
@@ -42,6 +43,21 @@
     async function handleEdit(row: any) {
         const tableName = widget.data?.tableName;
         if (!tableName) return;
+
+        if (peekMode === "full") {
+            if (tableName === "posts") {
+                goto(`/admin/editor?slug=${row.slug}`);
+                return;
+            } else if (tableName === "users") {
+                goto("/admin/users");
+                return;
+            } else {
+                adminState.showToast(
+                    "Full page editor not yet implemented for custom tables",
+                    "info",
+                );
+            }
+        }
 
         editBuffer = { ...row };
 
