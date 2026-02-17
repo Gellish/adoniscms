@@ -7,7 +7,7 @@
     }
 </script>
 
-<div class="p-6 space-y-8">
+<div class="col-span-24 p-6 space-y-8">
     <div class="flex justify-between items-center">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Manage Users</h1>

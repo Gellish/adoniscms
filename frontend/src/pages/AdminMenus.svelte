@@ -179,7 +179,7 @@
                         />
                     </div>
 
-                    <div class="p-6">
+                    <div class="col-span-24 p-6 space-y-8">
                         {#key activeMenuId}
                             <MenuBuilder bind:menu={menus[activeMenuIndex]} />
                         {/key}

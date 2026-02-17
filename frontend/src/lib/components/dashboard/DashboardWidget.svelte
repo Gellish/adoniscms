@@ -281,10 +281,18 @@
 </script>
 
 <div
-    class="rounded-[2.5rem] transition-all duration-500 relative flex flex-col group overflow-hidden {widget.type !==
+    class="transition-all duration-500 relative flex flex-col group overflow-hidden {widget.type !==
         'title' && widget.type !== 'header'
-        ? 'bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)] hover:-translate-y-1'
+        ? widget.settings?.backgroundMode === 'solid'
+            ? 'bg-white border border-slate-200'
+            : widget.settings?.backgroundMode === 'transparent'
+              ? 'bg-transparent border border-transparent'
+              : 'bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)]'
         : ''}"
+    class:hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]={widget.type !==
+        "title" && widget.type !== "header"}
+    class:hover:-translate-y-1={widget.type !== "title" &&
+        widget.type !== "header"}
     oncontextmenu={(e) => dashboardState.handleContextMenu(e, widget.id)}
     role="region"
     aria-label="{widget.title} widget"
@@ -294,7 +302,17 @@
     class:group-hover:border-opacity-100={widget.type === "header"}
     style={isMaximized
         ? "position: fixed; inset: 1rem; z-index: 100; height: auto;"
-        : `grid-column: ${widget.x + 1} / span ${widget.cols || 4}; grid-row: ${widget.y + 1} / span ${widget.rows || 1}; min-height: 60px;`}
+        : `grid-column: ${widget.x + 1} / span ${widget.cols || 4}; grid-row: ${widget.y + 1} / span ${widget.rows || 1}; min-height: 60px; 
+           border-radius: ${
+               widget.settings?.borderRadius === "none"
+                   ? "0"
+                   : widget.settings?.borderRadius === "lg"
+                     ? "1rem"
+                     : widget.settings?.borderRadius === "full"
+                       ? "9999px"
+                       : "2.5rem"
+           };
+           opacity: ${(widget.settings?.opacity ?? 100) / 100};`}
     class:z-50={!isMaximized &&
         (dashboardState.resizingWidget?.id === widget.id ||
             dashboardState.draggingWidget?.id === widget.id)}
@@ -475,7 +493,7 @@
     {/if}
 
     <!-- Resize Handles -->
-    {#if !isMaximized && !widget.locked && widget.type !== "header"}
+    {#if !isMaximized && !widget.locked}
         <!-- Bottom-Right (Primary) -->
         <div
             class="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50 hover:bg-slate-100 text-slate-400 rounded-tl-xl"

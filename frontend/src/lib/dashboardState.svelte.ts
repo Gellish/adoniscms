@@ -60,15 +60,15 @@ export class DashboardState {
                 w.description.toLowerCase().includes(query)
         );
 
-        // table widgets
+        // table widgets (Consolidated: Skip "posts" if it's already in BASE_WIDGETS)
         const tableWidgets = adminState.tables
-            .filter((t) => t.name.toLowerCase().includes(query))
+            .filter((t) => t.name.toLowerCase().includes(query) && t.name.toLowerCase() !== "posts")
             .map((t) => ({
                 type: "table" as WidgetType,
                 label: `${t.name} Table`,
                 icon: "🗃️",
                 description: `Display data from ${t.name}`,
-                defaultCols: 22,
+                defaultCols: GRID_COLS,
                 defaultRows: 4,
                 data: { tableName: t.name },
             }));
@@ -91,7 +91,7 @@ export class DashboardState {
                     id: "header-1",
                     type: "title",
                     title: this.slug.replace("-", " ").toUpperCase() + " DASHBOARD",
-                    cols: 22,
+                    cols: GRID_COLS,
                     rows: 1,
                     x: 0,
                     y: 0,

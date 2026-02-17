@@ -64,17 +64,17 @@
         {:else}
             <div
                 bind:this={state.container}
-                class="grid grid-cols-1 md:grid-cols-22 gap-6 relative"
+                class="grid grid-cols-1 md:grid-cols-24 gap-6 relative"
                 style="grid-auto-rows: 60px;"
                 in:fade
             >
                 {#if state.isResizing || state.isDragging}
                     <!-- Transparent Grid Layer -->
                     <div
-                        class="absolute inset-0 z-0 grid grid-cols-22 gap-6 pointer-events-none fade-in"
+                        class="absolute inset-0 z-0 grid grid-cols-24 gap-6 pointer-events-none fade-in"
                         style="grid-auto-rows: 60px;"
                     >
-                        {#each Array(22 * 40) as _, i}
+                        {#each Array(24 * 40) as _, i}
                             <div
                                 class="bg-indigo-500/5 rounded-2xl border-2 border-indigo-500/10 min-h-[60px]"
                             ></div>

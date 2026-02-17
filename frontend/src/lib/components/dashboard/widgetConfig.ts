@@ -27,6 +27,13 @@ export interface Widget {
     x: number; // 0-21
     y: number; // 0+
     locked?: boolean;
+    settings?: {
+        borderRadius?: "default" | "none" | "lg" | "full";
+        opacity?: number; // 0-100
+        backgroundMode?: "glass" | "solid" | "transparent";
+        peekMode?: "center" | "side" | "full";
+        [key: string]: any;
+    };
 }
 
 export interface PaletteItem {
@@ -79,7 +86,7 @@ export const BASE_WIDGETS: PaletteItem[] = [
         label: "Data Table",
         icon: "🗃️",
         description: "Display a table of records (default: Posts).",
-        defaultCols: 22,
+        defaultCols: 24,
         defaultRows: 12,
         data: { tableName: "posts" },
     },
@@ -88,7 +95,7 @@ export const BASE_WIDGETS: PaletteItem[] = [
         label: "Dashboard Title",
         icon: "🏷️",
         description: "A draggable title for your dashboard section.",
-        defaultCols: 22,
+        defaultCols: 24,
         defaultRows: 1,
     },
     {
@@ -104,7 +111,7 @@ export const BASE_WIDGETS: PaletteItem[] = [
         label: "Slim Header",
         icon: "👤",
         description: "A minimalist header with email and logout button.",
-        defaultCols: 22,
+        defaultCols: 24,
         defaultRows: 1,
     },
     {

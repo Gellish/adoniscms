@@ -138,9 +138,12 @@
                     "editor",
                     "menus",
                     "database",
-                    "post",
                     "activity",
-                ].some((p) => page.url.pathname.startsWith(`/admin/${p}`))),
+                ].some(
+                    (p) =>
+                        page.url.pathname === `/admin/${p}` ||
+                        page.url.pathname.startsWith(`/admin/${p}/`),
+                )),
     );
 
     // Drag and Drop Logic
@@ -279,7 +282,10 @@
     </aside>
 
     <div class="main-content">
-        <main class="page-body" class:is-dashboard={isDashboard}>
+        <main
+            class="page-body grid grid-cols-24 gap-6"
+            class:is-dashboard={isDashboard}
+        >
             {@render children()}
         </main>
     </div>
@@ -759,6 +765,7 @@
     }
     .page-body.is-dashboard {
         padding: 0 !important;
+        display: block !important; /* Dashboard handles its own grid */
     }
 
     /* Beautiful Modal Styles - Refined to match screenshot */

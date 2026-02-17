@@ -34,6 +34,11 @@
     let showRoadmap = $state(false);
 
     const roadmapData = [
+        {
+            title: "24-Column Pixel-Perfect Grid",
+            status: "Completed",
+            phase: 2,
+        },
         { title: "Grouping", status: "In Progress", phase: 2 },
         { title: "Full-Page Mode", status: "In Progress", phase: 2 },
         { title: "Manual Column Resizing", status: "Planned", phase: 2 },
