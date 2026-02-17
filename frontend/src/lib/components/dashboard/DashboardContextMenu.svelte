@@ -1,6 +1,7 @@
 <script lang="ts">
     import { fade, scale } from "svelte/transition";
     import { type DashboardState } from "$lib/dashboardState.svelte";
+    import { adminState } from "$lib/adminState.svelte";
 
     let { state: dashboardState } = $props<{ state: DashboardState }>();
 
@@ -67,6 +68,8 @@
 
     let editingTitle = $state(false);
     let tempTitle = $state("");
+    let tempTableName = $state("");
+    let tempPeekMode = $state("center");
 
     function openSettings() {
         if (dashboardState.contextMenu.widgetId) {
@@ -75,6 +78,8 @@
             );
             if (widget) {
                 tempTitle = widget.title || "";
+                tempTableName = widget.data?.tableName || "";
+                tempPeekMode = widget.settings?.peekMode || "center";
                 editingTitle = true;
             }
         }
@@ -82,9 +87,25 @@
 
     function saveSettings() {
         if (dashboardState.contextMenu.widgetId) {
-            dashboardState.updateWidget(dashboardState.contextMenu.widgetId, {
-                title: tempTitle,
-            });
+            const widget = dashboardState.widgets.find(
+                (w: any) => w.id === dashboardState.contextMenu.widgetId,
+            );
+            if (widget) {
+                const updates: any = { title: tempTitle };
+
+                if (widget.type === "table") {
+                    updates.data = { ...widget.data, tableName: tempTableName };
+                    updates.settings = {
+                        ...widget.settings,
+                        peekMode: tempPeekMode,
+                    };
+                }
+
+                dashboardState.updateWidget(
+                    dashboardState.contextMenu.widgetId,
+                    updates,
+                );
+            }
             editingTitle = false;
             dashboardState.closeContextMenu();
         }
@@ -365,6 +386,9 @@
 
     <!-- Settings Modal (Title Edit) -->
     {#if editingTitle}
+        {@const targetWidget = dashboardState.widgets.find(
+            (w: any) => w.id === dashboardState.contextMenu.widgetId,
+        )}
         <div
             class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
             transition:fade
@@ -394,6 +418,65 @@
                             placeholder="Enter title..."
                         />
                     </div>
+
+                    {#if targetWidget?.type === "table"}
+                        <div>
+                            <label
+                                for="data-source-select"
+                                class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5"
+                                >Data Source (Table)</label
+                            >
+                            <select
+                                id="data-source-select"
+                                bind:value={tempTableName}
+                                class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+                            >
+                                <option value="posts">Posts (Official)</option>
+                                <option value="users">Users (Official)</option>
+                                <div class="h-px bg-slate-200 my-1"></div>
+                                {#each adminState.tables as table}
+                                    <option value={table.name}
+                                        >{table.name} (Custom)</option
+                                    >
+                                {/each}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label
+                                for="peek-mode-select"
+                                class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5"
+                                >Peek Mode (Editing)</label
+                            >
+                            <div class="grid grid-cols-2 gap-2">
+                                <button
+                                    onclick={() => (tempPeekMode = "center")}
+                                    class="px-3 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all {tempPeekMode ===
+                                    'center'
+                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
+                                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}"
+                                >
+                                    Center Modal
+                                </button>
+                                <button
+                                    onclick={() => (tempPeekMode = "side")}
+                                    class="px-3 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all {tempPeekMode ===
+                                    'side'
+                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
+                                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}"
+                                >
+                                    Side Panel
+                                </button>
+                            </div>
+                        </div>
+
+                        <p
+                            class="mt-2 text-[9px] font-medium text-slate-400 leading-relaxed italic"
+                        >
+                            Peek mode controls how records are displayed when
+                            editing. Side panel is great for quick edits.
+                        </p>
+                    {/if}
                 </div>
 
                 <div class="flex items-center justify-end gap-2 mt-6">

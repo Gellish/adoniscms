@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { slide } from "svelte/transition";
+    import { slide, fade, scale, fly } from "svelte/transition";
+    import SchemaDesigner from "$lib/components/SchemaDesigner.svelte";
     import WidgetTable from "$lib/components/dashboard/widgets/table/WidgetTable.svelte";
     import WidgetProfile from "$lib/components/dashboard/widgets/profile/WidgetProfile.svelte";
     import WidgetHeader from "$lib/components/dashboard/widgets/header/WidgetHeader.svelte";
@@ -14,6 +15,10 @@
     import { type DashboardState } from "$lib/dashboardState.svelte";
     import type { Widget } from "$lib/components/dashboard/widgetConfig";
     import { DUMMY_POSTS } from "$lib/mockData";
+    import { adminState } from "$lib/adminState.svelte";
+    import DynamicForm from "$lib/components/DynamicForm.svelte";
+    import { ClientDB } from "$lib/client-db/core";
+    import { SyncEngine } from "$lib/client-db/sync/engine";
 
     let { widget, state: dashboardState } = $props<{
         widget: Widget;
@@ -24,6 +29,92 @@
 
     function toggleMaximize() {
         isMaximized = !isMaximized;
+    }
+
+    // --- Editable Table Logic ---
+    let isEditing = $state(false);
+    let showSchemaDesigner = $state(false);
+    let editBuffer = $state<any>({});
+    let editSchema = $state<any[]>([]);
+
+    let peekMode = $derived(widget.settings?.peekMode || "center");
+
+    async function handleEdit(row: any) {
+        const tableName = widget.data?.tableName;
+        if (!tableName) return;
+
+        editBuffer = { ...row };
+
+        // Try to get manual schema from ClientDB
+        const stored = await ClientDB.getSchema(tableName);
+        if (stored && stored.schema) {
+            editSchema = stored.schema;
+        } else {
+            // Infer basic schema
+            editSchema = Object.keys(row)
+                .filter((k) => k !== "id")
+                .map((k) => ({
+                    field: k,
+                    label: k.charAt(0).toUpperCase() + k.slice(1),
+                    type: typeof row[k] === "boolean" ? "boolean" : "input",
+                }));
+        }
+
+        isEditing = true;
+    }
+
+    async function handleSave() {
+        const tableName = widget.data?.tableName;
+        if (!tableName) return;
+
+        try {
+            const db = await ClientDB.init();
+            const tx = db.transaction(tableName as any, "readwrite");
+            await tx.store.put($state.snapshot(editBuffer));
+            await tx.done;
+
+            // Log for sync
+            await SyncEngine.logOperation({
+                table: tableName,
+                action: "update",
+                payload: $state.snapshot(editBuffer),
+            });
+
+            adminState.showToast("Updated successfully", "success");
+            isEditing = false;
+        } catch (e) {
+            console.error("Failed to save widget edit:", e);
+            adminState.showToast("Failed to save", "error");
+        }
+    }
+
+    async function handleDelete(row: any) {
+        const tableName = widget.data?.tableName;
+        if (!tableName || !confirm("Delete this record?")) return;
+
+        try {
+            const db = await ClientDB.init();
+            if (tableName === "posts") {
+                adminState.showToast(
+                    "Post deletion via widget not yet implemented",
+                    "info",
+                );
+                return;
+            } else {
+                const tx = db.transaction(tableName as any, "readwrite");
+                await tx.store.delete(row.id);
+                await tx.done;
+
+                await SyncEngine.logOperation({
+                    table: tableName,
+                    action: "delete",
+                    payload: { id: row.id },
+                });
+            }
+            adminState.showToast("Deleted successfully", "success");
+        } catch (e) {
+            console.error("Failed to delete from widget:", e);
+        }
     }
 
     // Helper to determine if we should show the "Remove" button
@@ -57,6 +148,62 @@
             },
         },
     ];
+
+    const USER_COLUMNS = [
+        { key: "fullName", label: "Name" },
+        { key: "email", label: "Email" },
+        {
+            key: "role",
+            label: "Role",
+            render: (row: any) =>
+                `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 border border-indigo-100">${row.role || "user"}</span>`,
+        },
+        {
+            key: "joinedAt",
+            label: "Joined",
+            align: "right",
+            render: (row: any) =>
+                row.joinedAt
+                    ? new Date(row.joinedAt).toLocaleDateString()
+                    : "—",
+        },
+    ];
+
+    // Dynamic Data & Columns Resolver
+    let tableData = $derived(() => {
+        const tableName = widget.data?.tableName?.toLowerCase();
+        if (tableName === "posts")
+            return adminState.posts.length > 0 ? adminState.posts : DUMMY_POSTS;
+        if (tableName === "users") return adminState.users;
+
+        // Custom ClientDB tables
+        const customTable = adminState.tables.find(
+            (t: any) => t.name.toLowerCase() === tableName,
+        );
+        if (customTable) return customTable.data || [];
+
+        return [];
+    });
+
+    let tableColumns = $derived(() => {
+        const tableName = widget.data?.tableName?.toLowerCase();
+        if (tableName === "posts") return POST_COLUMNS;
+        if (tableName === "users") return USER_COLUMNS;
+
+        // Generic columns for custom tables
+        const data = tableData();
+        if (data.length > 0) {
+            return Object.keys(data[0])
+                .filter((k) => k !== "id" && typeof data[0][k] !== "object")
+                .slice(0, 4)
+                .map((k) => ({
+                    key: k,
+                    label: k.charAt(0).toUpperCase() + k.slice(1),
+                }));
+        }
+
+        return [{ key: "id", label: "ID" }];
+    });
 </script>
 
 <div
@@ -221,19 +368,13 @@
                         </div>
                     </div>
                     <div class="flex-1 min-h-0 bg-white relative">
-                        {#if widget.data?.tableName?.toLowerCase() === "posts"}
-                            <WidgetTable
-                                data={DUMMY_POSTS}
-                                columns={POST_COLUMNS}
-                            />
-                        {:else}
-                            <div
-                                class="p-8 text-center text-slate-400 italic text-sm w-full h-full flex items-center justify-center bg-slate-50"
-                            >
-                                No table configuration found for "{widget.data
-                                    ?.tableName || "unknown table"}"
-                            </div>
-                        {/if}
+                        <WidgetTable
+                            data={tableData()}
+                            columns={tableColumns()}
+                            onedit={handleEdit}
+                            ondelete={handleDelete}
+                            onconfigure={() => (showSchemaDesigner = true)}
+                        />
                     </div>
                 </div>
             {:else if widget.type === "profile"}
@@ -332,6 +473,182 @@
             <div
                 class="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-indigo-400"
             ></div>
+        </div>
+    {/if}
+
+    <!-- Edit Modal (Center Peek) -->
+    {#if isEditing && peekMode === "center"}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+            class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1000] flex items-center justify-center p-6"
+            onclick={() => (isEditing = false)}
+            transition:fade
+        >
+            <div
+                class="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-100"
+                onclick={(e) => e.stopPropagation()}
+                transition:scale={{ start: 0.95, duration: 200 }}
+            >
+                <div
+                    class="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/30"
+                >
+                    <div>
+                        <h3
+                            class="text-sm font-black uppercase tracking-widest text-slate-800"
+                        >
+                            Edit Record
+                        </h3>
+                        <p
+                            class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5"
+                        >
+                            {widget.data?.tableName}
+                        </p>
+                    </div>
+                    <button
+                        onclick={() => (isEditing = false)}
+                        class="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                        aria-label="Close edit modal"
+                    >
+                        <svg
+                            class="w-4 h-4 text-slate-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            ><path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2.5"
+                                d="M6 18L18 6M6 6l12 12"
+                            /></svg
+                        >
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6">
+                    <DynamicForm schema={editSchema} bind:data={editBuffer} />
+                </div>
+
+                <div
+                    class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3"
+                >
+                    <button
+                        onclick={() => (isEditing = false)}
+                        class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onclick={handleSave}
+                        class="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-indigo-500/20"
+                    >
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    {/if}
+
+    <!-- Side Peek Panel -->
+    {#if isEditing && peekMode === "side"}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+            class="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-[1000] flex justify-end"
+            onclick={() => (isEditing = false)}
+            transition:fade
+        >
+            <div
+                class="bg-white w-full max-w-lg h-full shadow-[-20px_0_50px_-12px_rgba(0,0,0,0.1)] border-l border-slate-100 flex flex-col"
+                onclick={(e) => e.stopPropagation()}
+                transition:fly={{ x: 500, duration: 300, opacity: 1 }}
+            >
+                <div
+                    class="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10"
+                >
+                    <div>
+                        <h3
+                            class="text-base font-black uppercase tracking-tighter text-slate-800"
+                        >
+                            Edit Record
+                        </h3>
+                        <p
+                            class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1"
+                        >
+                            {widget.data?.tableName}
+                        </p>
+                    </div>
+                    <button
+                        onclick={() => (isEditing = false)}
+                        class="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                        aria-label="Close side panel"
+                    >
+                        <svg
+                            class="w-5 h-5 text-slate-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            ><path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2.5"
+                                d="M6 18L18 6M6 6l12 12"
+                            /></svg
+                        >
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-8 bg-slate-50/30">
+                    <div
+                        class="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm"
+                    >
+                        <DynamicForm
+                            schema={editSchema}
+                            bind:data={editBuffer}
+                        />
+                    </div>
+                </div>
+
+                <div
+                    class="px-8 py-6 bg-white border-t border-slate-100 flex justify-end gap-3"
+                >
+                    <button
+                        onclick={() => (isEditing = false)}
+                        class="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all text-xs uppercase"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onclick={handleSave}
+                        class="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-indigo-500/20"
+                    >
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    {/if}
+
+    <!-- Schema Designer Modal -->
+    {#if showSchemaDesigner}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+            class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1100] flex items-center justify-center p-12"
+            onclick={() => (showSchemaDesigner = false)}
+            transition:fade
+        >
+            <div
+                class="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl"
+                onclick={(e) => e.stopPropagation()}
+                transition:scale={{ start: 0.95, duration: 200 }}
+            >
+                <SchemaDesigner
+                    tableName={widget.data?.tableName || ""}
+                    columns={tableColumns().map((c) => c.key)}
+                    onSave={() => (showSchemaDesigner = false)}
+                />
+            </div>
         </div>
     {/if}
 </div>
