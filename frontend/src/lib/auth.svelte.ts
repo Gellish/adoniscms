@@ -1,6 +1,4 @@
-
 // State using Svelte 5 Runes
-import { ClientDB } from '$lib/db.js';
 
 interface User {
     id: number;
@@ -24,18 +22,8 @@ if (typeof localStorage !== 'undefined') {
 export function useAuth() {
 
     async function checkAuth() {
-        // 1. Try Offline Session first (Fast & Works Offline)
-        try {
-            const cachedUser = await ClientDB.getSession();
-            if (cachedUser) {
-                user = cachedUser;
-                localStorage.setItem('auth_session', JSON.stringify(user));
-            }
-        } catch (e) {
-            console.warn('[Auth] Error reading offline session:', e);
-        } finally {
-            initialized = true;
-        }
+        // Legacy session check removed. Relying on localStorage and API verification.
+        initialized = true;
 
         // 2. Try Online verification (Background)
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -51,15 +39,14 @@ export function useAuth() {
             if (res.ok) {
                 const freshUser = await res.json();
                 user = freshUser;
-                // Update offline cache
-                await ClientDB.setSession(freshUser);
+                localStorage.setItem('auth_session', JSON.stringify(freshUser));
             } else {
                 // Only clear if explicitly unauthorized? 
                 // Careful: if server is unreachable, we don't want to clear.
                 // If 401, clear.
                 if (res.status === 401) {
                     user = null;
-                    await ClientDB.clearSession();
+                    localStorage.removeItem('auth_session');
                 }
             }
         } catch {
@@ -88,7 +75,6 @@ export function useAuth() {
             const data = await res.json();
             user = data.user;
             localStorage.setItem('auth_session', JSON.stringify(user));
-            await ClientDB.setSession(user);
             return true;
         } catch (e) {
             console.warn('[Auth] Backend unreachable. Trying Local Auth...');
@@ -103,7 +89,6 @@ export function useAuth() {
                 };
                 user = localUser;
                 localStorage.setItem('auth_session', JSON.stringify(user));
-                await ClientDB.setSession(user);
                 return true;
             }
             throw e;
@@ -127,7 +112,6 @@ export function useAuth() {
         const data = await res.json();
         user = data.user;
         localStorage.setItem('auth_session', JSON.stringify(user));
-        await ClientDB.setSession(user);
         return true;
     }
 
@@ -141,7 +125,6 @@ export function useAuth() {
 
         user = null;
         if (typeof localStorage !== 'undefined') localStorage.removeItem('auth_session');
-        await ClientDB.clearSession();
         window.location.href = '/'; // Hard redirect to clear any other state
     }
 

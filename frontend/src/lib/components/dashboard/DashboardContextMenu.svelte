@@ -252,7 +252,7 @@
 {#if dashboardState.contextMenu.visible}
     <!-- Backdrop -->
     <div
-        class="fixed inset-0 z-[100]"
+        class="fixed inset-0 z-[99998]"
         role="presentation"
         onclick={() => dashboardState.closeContextMenu()}
         oncontextmenu={(e) => {
@@ -263,7 +263,7 @@
 
     <!-- Menu -->
     <div
-        class="fixed z-[101] min-w-[220px] bg-white rounded-xl shadow-2xl border border-indigo-100 py-2 origin-top-left"
+        class="fixed z-[99999] min-w-[220px] bg-white rounded-xl shadow-2xl border border-indigo-100 py-2 origin-top-left"
         style="left: {dashboardState.contextMenu.x}px; top: {dashboardState
             .contextMenu.y}px;"
         transition:scale={{ duration: 150, start: 0.95 }}

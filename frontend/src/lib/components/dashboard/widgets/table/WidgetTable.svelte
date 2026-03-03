@@ -33,19 +33,32 @@
     let showSettings = $state(false);
     let showRoadmap = $state(false);
 
+    // Multi-Property Filtering
+    type Filter = { key: string; operator: string; value: any };
+    let filters = $state<Filter[]>([]);
+    let showFilterPanel = $state(false);
+
+    const operators = [
+        { label: "Contains", value: "contains" },
+        { label: "Is", value: "is" },
+        { label: "Does not contain", value: "not_contains" },
+        { label: "Is empty", value: "empty" },
+        { label: "Is not empty", value: "not_empty" },
+    ];
+
     const roadmapData = [
         {
             title: "24-Column Pixel-Perfect Grid",
             status: "Completed",
             phase: 2,
         },
-        { title: "Grouping", status: "In Progress", phase: 2 },
-        { title: "Full-Page Mode", status: "In Progress", phase: 2 },
-        { title: "Manual Column Resizing", status: "Planned", phase: 2 },
-        { title: "Drag-and-Drop Reordering", status: "Planned", phase: 2 },
-        { title: "Bulk Actions", status: "Planned", phase: 2 },
-        { title: "Board View", status: "Planned", phase: 3 },
-        { title: "Advanced Filtering", status: "Planned", phase: 3 },
+        { title: "Grouping", status: "Completed", phase: 2 },
+        { title: "Full-Page Mode", status: "Completed", phase: 2 },
+        { title: "Multi-Property Filtering", status: "Completed", phase: 2 },
+        { title: "Manual Column Resizing", status: "In Progress", phase: 2 },
+        { title: "Board View (Kanban)", status: "Planned", phase: 3 },
+        { title: "Timeline View", status: "Planned", phase: 3 },
+        { title: "Inline Cell Editing", status: "Planned", phase: 3 },
     ];
 
     // Initialize visible columns correctly
@@ -60,6 +73,7 @@
             groupByCol,
             isFullPage,
             visibleColumnKeys: Array.from(visibleColumnKeys),
+            filters,
         };
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
         showSettings = false;
@@ -77,6 +91,9 @@
                     isFullPage = parsed.isFullPage;
                 if (parsed.visibleColumnKeys) {
                     visibleColumnKeys = new Set(parsed.visibleColumnKeys);
+                }
+                if (parsed.filters) {
+                    filters = parsed.filters;
                 }
             }
         } catch (e) {
@@ -100,11 +117,36 @@
     let filteredData = $derived(
         safeData
             .filter((row) => {
-                if (!searchQuery) return true;
-                const q = searchQuery.toLowerCase();
-                return Object.values(row).some((val) =>
-                    String(val).toLowerCase().includes(q),
-                );
+                // 1. Global Search
+                if (searchQuery) {
+                    const q = searchQuery.toLowerCase();
+                    const matchesSearch = Object.values(row).some((val) =>
+                        String(val).toLowerCase().includes(q),
+                    );
+                    if (!matchesSearch) return false;
+                }
+
+                // 2. Multi-Property Filters
+                return filters.every((f) => {
+                    const val = row[f.key];
+                    const target = String(f.value || "").toLowerCase();
+                    const source = String(val || "").toLowerCase();
+
+                    switch (f.operator) {
+                        case "contains":
+                            return source.includes(target);
+                        case "is":
+                            return source === target;
+                        case "not_contains":
+                            return !source.includes(target);
+                        case "empty":
+                            return !val || val === "";
+                        case "not_empty":
+                            return val && val !== "";
+                        default:
+                            return true;
+                    }
+                });
             })
             .sort((a, b) => {
                 const valA = a[sortCol] || "";
@@ -199,6 +241,174 @@
                 <span class="text-xs font-bold capitalize">{viewType} view</span
                 >
             </button>
+
+            <!-- Filter Toggle -->
+            <div class="relative">
+                <button
+                    onclick={() => (showFilterPanel = !showFilterPanel)}
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors {filters.length >
+                    0
+                        ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                        : ''}"
+                >
+                    <span class="text-xs font-bold capitalize">Filter</span>
+                    {#if filters.length > 0}
+                        <span
+                            class="flex items-center justify-center bg-indigo-600 text-white text-[9px] font-bold w-4 h-4 rounded-full"
+                        >
+                            {filters.length}
+                        </span>
+                    {/if}
+                    <svg
+                        class="w-4 h-4 {filters.length > 0
+                            ? 'text-indigo-600'
+                            : 'text-slate-400'}"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                        />
+                    </svg>
+                </button>
+
+                {#if showFilterPanel}
+                    <!-- Filter Popover -->
+                    <div
+                        class="absolute top-full left-0 mt-2 w-[320px] bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-4"
+                        transition:slide={{ duration: 200 }}
+                    >
+                        <div class="flex items-center justify-between mb-4">
+                            <h3
+                                class="text-xs font-black text-slate-800 uppercase tracking-wider"
+                            >
+                                Active Filters
+                            </h3>
+                            <button
+                                onclick={() => (showFilterPanel = false)}
+                                class="text-slate-400 hover:text-slate-600"
+                                aria-label="Close filters"
+                            >
+                                <svg
+                                    class="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    ><path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    /></svg
+                                >
+                            </button>
+                        </div>
+
+                        <div class="space-y-3 max-h-[300px] overflow-y-auto">
+                            {#if filters.length === 0}
+                                <p class="text-xs text-slate-400 py-2">
+                                    No filters applied.
+                                </p>
+                            {/if}
+
+                            {#each filters as filter, i}
+                                <div
+                                    class="p-3 bg-slate-50/50 border border-slate-100 rounded-lg space-y-2 group"
+                                    transition:slide|local
+                                >
+                                    <div class="flex items-center gap-2">
+                                        <select
+                                            bind:value={filter.key}
+                                            class="flex-1 text-[11px] font-bold text-slate-700 bg-white border border-slate-200 rounded px-2 py-1 outline-none focus:border-indigo-500"
+                                        >
+                                            {#each visibleColumns as col}
+                                                <option value={col.key}
+                                                    >{col.label}</option
+                                                >
+                                            {/each}
+                                        </select>
+                                        <select
+                                            bind:value={filter.operator}
+                                            class="flex-1 text-[11px] font-medium text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 outline-none focus:border-indigo-500"
+                                        >
+                                            {#each operators as op}
+                                                <option value={op.value}
+                                                    >{op.label}</option
+                                                >
+                                            {/each}
+                                        </select>
+                                        <button
+                                            onclick={() => {
+                                                filters = filters.filter(
+                                                    (_, idx) => idx !== i,
+                                                );
+                                                saveSettings();
+                                            }}
+                                            class="text-slate-300 hover:text-red-500 transition-colors"
+                                            aria-label="Remove filter"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                ><path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                /></svg
+                                            >
+                                        </button>
+                                    </div>
+
+                                    {#if filter.operator !== "empty" && filter.operator !== "not_empty"}
+                                        <input
+                                            type="text"
+                                            bind:value={filter.value}
+                                            placeholder="Value..."
+                                            class="w-full text-[11px] bg-white border border-slate-200 rounded px-2 py-1.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-slate-300"
+                                        />
+                                    {/if}
+                                </div>
+                            {/each}
+                        </div>
+
+                        <button
+                            onclick={() => {
+                                filters = [
+                                    ...filters,
+                                    {
+                                        key: visibleColumns[0]?.key || "title",
+                                        operator: "contains",
+                                        value: "",
+                                    },
+                                ];
+                                saveSettings();
+                            }}
+                            class="w-full mt-3 py-2 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200/50"
+                        >
+                            <svg
+                                class="w-3 h-3"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                ><path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M12 4v16m8-8H4"
+                                /></svg
+                            >
+                            Add Filter
+                        </button>
+                    </div>
+                {/if}
+            </div>
         </div>
 
         <div class="flex items-center gap-2">

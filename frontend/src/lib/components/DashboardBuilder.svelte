@@ -9,16 +9,26 @@
     let { slug = "default" } = $props<{ slug?: string }>();
 
     // Initialize state properly
-    // Using $derived ensures state is recreated when slug changes, fixing the linter warning
-    let state = $derived(new DashboardState(slug));
+    let state = $state(new DashboardState(slug));
+
+    import { untrack } from "svelte";
 
     $effect(() => {
-        // Load dashboard config when state instance changes (which happens when slug changes)
-        state.load();
+        // We only want to track 'slug' prop changes here
+        const currentSlug = slug;
 
-        // Ensure shared admin state (like tables) is loaded
-        if (adminState.tables.length === 0) {
-            adminState.loadAllLocal();
+        const shouldLoad = untrack(() => {
+            return (
+                state.slug !== currentSlug ||
+                (state.widgets.length === 0 &&
+                    !state.isLoading &&
+                    !state.hasLoaded)
+            );
+        });
+
+        if (shouldLoad) {
+            state.slug = currentSlug;
+            state.load();
         }
     });
 </script>

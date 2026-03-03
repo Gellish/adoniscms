@@ -1,7 +1,6 @@
 <script lang="ts">
     import { slide, fade, scale, fly } from "svelte/transition";
     import { goto } from "$app/navigation";
-    import SchemaDesigner from "$lib/components/SchemaDesigner.svelte";
     import WidgetTable from "$lib/components/dashboard/widgets/table/WidgetTable.svelte";
     import WidgetProfile from "$lib/components/dashboard/widgets/profile/WidgetProfile.svelte";
     import WidgetHeader from "$lib/components/dashboard/widgets/header/WidgetHeader.svelte";
@@ -10,16 +9,12 @@
     import WidgetChart from "$lib/components/dashboard/widgets/chart/WidgetChart.svelte";
     import WidgetActivity from "$lib/components/dashboard/widgets/activity/WidgetActivity.svelte";
     import WidgetTitle from "$lib/components/dashboard/widgets/title/WidgetTitle.svelte";
-    import WidgetManagerWidget from "$lib/components/dashboard/widgets/manager/WidgetManagerWidget.svelte";
-    import ClientDBWidget from "$lib/components/dashboard/widgets/system/ClientDBWidget.svelte";
     import MediaWidget from "$lib/components/dashboard/widgets/system/MediaWidget.svelte";
     import { type DashboardState } from "$lib/dashboardState.svelte";
     import type { Widget } from "$lib/components/dashboard/widgetConfig";
     import { DUMMY_POSTS } from "$lib/mockData";
     import { adminState } from "$lib/adminState.svelte";
     import DynamicForm from "$lib/components/DynamicForm.svelte";
-    import { ClientDB } from "$lib/client-db/core";
-    import { SyncEngine } from "$lib/client-db/sync/engine";
 
     let { widget, state: dashboardState } = $props<{
         widget: Widget;
@@ -53,7 +48,7 @@
                 return;
             } else {
                 adminState.showToast(
-                    "Full page editor not yet implemented for custom tables",
+                    "Full page editor not yet implemented for this table",
                     "info",
                 );
             }
@@ -61,20 +56,14 @@
 
         editBuffer = { ...row };
 
-        // Try to get manual schema from ClientDB
-        const stored = await ClientDB.getSchema(tableName);
-        if (stored && stored.schema) {
-            editSchema = stored.schema;
-        } else {
-            // Infer basic schema
-            editSchema = Object.keys(row)
-                .filter((k) => k !== "id")
-                .map((k) => ({
-                    field: k,
-                    label: k.charAt(0).toUpperCase() + k.slice(1),
-                    type: typeof row[k] === "boolean" ? "boolean" : "input",
-                }));
-        }
+        // Infer basic schema from current row
+        editSchema = Object.keys(row)
+            .filter((k) => k !== "id")
+            .map((k) => ({
+                field: k,
+                label: k.charAt(0).toUpperCase() + k.slice(1),
+                type: typeof row[k] === "boolean" ? "boolean" : "input",
+            }));
 
         isEditing = true;
     }
@@ -84,19 +73,16 @@
         if (!tableName) return;
 
         try {
-            const db = await ClientDB.init();
-            const tx = db.transaction(tableName as any, "readwrite");
-            await tx.store.put($state.snapshot(editBuffer));
-            await tx.done;
-
-            // Log for sync
-            await SyncEngine.logOperation({
-                table: tableName,
-                action: "update",
-                payload: $state.snapshot(editBuffer),
-            });
-
-            adminState.showToast("Updated successfully", "success");
+            console.log(
+                "[DashboardWidget] Save requested for",
+                tableName,
+                editBuffer,
+            );
+            // This should eventually call an API endpoint
+            adminState.showToast(
+                "Save functionality moved to backend (Pending)",
+                "info",
+            );
             isEditing = false;
         } catch (e) {
             console.error("Failed to save widget edit:", e);
@@ -109,25 +95,15 @@
         if (!tableName || !confirm("Delete this record?")) return;
 
         try {
-            const db = await ClientDB.init();
-            if (tableName === "posts") {
-                adminState.showToast(
-                    "Post deletion via widget not yet implemented",
-                    "info",
-                );
-                return;
-            } else {
-                const tx = db.transaction(tableName as any, "readwrite");
-                await tx.store.delete(row.id);
-                await tx.done;
-
-                await SyncEngine.logOperation({
-                    table: tableName,
-                    action: "delete",
-                    payload: { id: row.id },
-                });
-            }
-            adminState.showToast("Deleted successfully", "success");
+            console.log(
+                "[DashboardWidget] Delete requested for",
+                tableName,
+                row.id,
+            );
+            adminState.showToast(
+                "Delete functionality moved to backend (Pending)",
+                "info",
+            );
         } catch (e) {
             console.error("Failed to delete from widget:", e);
         }
@@ -160,22 +136,18 @@
                 );
                 if (idx !== -1) {
                     adminState.posts[idx] = $state.snapshot(updatedRow);
-                    adminState.showToast("Post updated", "success");
+                    adminState.showToast("Post updated locally", "success");
                 }
             } else {
-                // Custom Table Update
-                const db = await ClientDB.init();
-                const tx = db.transaction(tableName as any, "readwrite");
-                await tx.store.put($state.snapshot(updatedRow));
-                await tx.done;
-
-                await SyncEngine.logOperation({
-                    table: tableName,
-                    action: "update",
-                    payload: $state.snapshot(updatedRow),
-                });
-
-                adminState.showToast("Record updated", "success");
+                console.log(
+                    "[DashboardWidget] Row update requested for",
+                    tableName,
+                    updatedRow,
+                );
+                adminState.showToast(
+                    "Real-time updates moved to backend (Pending)",
+                    "info",
+                );
             }
         } catch (e) {
             console.error("Failed to update row:", e);
@@ -339,7 +311,7 @@
         ></div>
     {/if}
 
-    {#if widget.type !== "header" && widget.type !== "widget_manager" && widget.type !== "client_db" && widget.type !== "media"}
+    {#if widget.type !== "header" && widget.type !== "media"}
         <div
             class="shrink-0 flex flex-col relative group/content"
             class:cursor-grab={!widget.locked}
@@ -468,19 +440,6 @@
             {:else if widget.type === "profile"}
                 <div class="flex-1 min-h-0 flex flex-col">
                     <WidgetProfile />
-                </div>
-            {:else if widget.type === "widget_manager"}
-                <div class="flex-1 min-h-0 flex flex-col">
-                    <WidgetManagerWidget {widget} state={dashboardState} />
-                </div>
-            {:else if widget.type === "client_db"}
-                <div class="flex-1 min-h-0 flex flex-col">
-                    <ClientDBWidget
-                        {widget}
-                        state={dashboardState}
-                        {isMaximized}
-                        onToggleMaximize={toggleMaximize}
-                    />
                 </div>
             {:else if widget.type === "media"}
                 <div class="flex-1 min-h-0 flex flex-col">
@@ -713,29 +672,6 @@
                         Save Changes
                     </button>
                 </div>
-            </div>
-        </div>
-    {/if}
-
-    <!-- Schema Designer Modal -->
-    {#if showSchemaDesigner}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-            class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1100] flex items-center justify-center p-12"
-            onclick={() => (showSchemaDesigner = false)}
-            transition:fade
-        >
-            <div
-                class="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl"
-                onclick={(e) => e.stopPropagation()}
-                transition:scale={{ start: 0.95, duration: 200 }}
-            >
-                <SchemaDesigner
-                    tableName={widget.data?.tableName || ""}
-                    columns={tableColumns().map((c) => c.key)}
-                    onSave={() => (showSchemaDesigner = false)}
-                />
             </div>
         </div>
     {/if}

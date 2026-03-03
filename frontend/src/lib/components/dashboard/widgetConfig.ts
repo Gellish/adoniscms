@@ -7,8 +7,6 @@ export type WidgetType =
     | "title"
     | "profile"
     | "header"
-    | "widget_manager"
-    | "client_db"
     | "media";
 
 export interface TableWidgetData {
@@ -113,22 +111,6 @@ export const BASE_WIDGETS: PaletteItem[] = [
         description: "A minimalist header with email and logout button.",
         defaultCols: 24,
         defaultRows: 1,
-    },
-    {
-        type: "widget_manager",
-        label: "Widget Manager",
-        icon: "🧰",
-        description: "Manage your widget library directly from the dashboard.",
-        defaultCols: 6,
-        defaultRows: 8,
-    },
-    {
-        type: "client_db",
-        label: "ClientDB Builder",
-        icon: "🏗️",
-        description: "Create new local object stores (tables) for your offline database.",
-        defaultCols: 6,
-        defaultRows: 6,
     },
     {
         type: "media",

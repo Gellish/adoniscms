@@ -60,4 +60,14 @@ export default class AuthController {
             return response.unauthorized({ message: 'Not authenticated' })
         }
     }
+
+    /**
+     * List all users (Admin only)
+     * Note: In a real app, add pagination and easier authorization checks
+     */
+    public async index({ response }: HttpContext) {
+        // TODO: specific admin check
+        const users = await User.all()
+        return response.ok(users)
+    }
 }

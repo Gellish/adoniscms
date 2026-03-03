@@ -151,14 +151,6 @@ export const PostService = {
 };
 
 // Helper: Scan IndexedDB for post events (via ClientDB)
-import { ClientDB } from '$lib/db.js';
-
 async function getAllLocalPostEvents() {
-    if (!browser) return [];
-    // Get all events that are of type 'post'
-    // Since we don't have a perfect cursor setup in the simple db wrapper, 
-    // we can get all events and filter, or add a method to ClientDB.
-    // For now, let's assuming we add a method to ClientDB or use raw openDB here if handy.
-    // Better: Add getAllEvents() to ClientDB and filter here.
-    return ClientDB.getAllEventsByType('post');
+    return [];
 }

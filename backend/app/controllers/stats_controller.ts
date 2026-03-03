@@ -22,4 +22,12 @@ export default class StatsController {
             systemState: 'Online'
         })
     }
+
+    public async tables({ response }: HttpContext) {
+        // Return baseline tables that the CMS supports out of box
+        return response.json([
+            { id: 'posts', name: 'posts', description: 'System Posts table' },
+            { id: 'users', name: 'users', description: 'System Users table' }
+        ])
+    }
 }

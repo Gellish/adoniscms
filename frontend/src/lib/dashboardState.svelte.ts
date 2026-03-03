@@ -1,4 +1,3 @@
-import { ClientDB } from "$lib/client-db/core";
 import { adminState } from "$lib/adminState.svelte";
 import type { Widget, WidgetType, PaletteItem } from "$lib/components/dashboard/widgetConfig";
 import { BASE_WIDGETS } from "$lib/components/dashboard/widgetConfig";
@@ -8,7 +7,9 @@ import { GAP, ROW_HEIGHT, GRID_COLS } from "$lib/dashboardConstants";
 export class DashboardState {
     slug: string;
     widgets = $state<Widget[]>([]);
-    isLoading = $state(true);
+    isLoading = $state(false);
+    hasLoaded = $state(false);
+    private currentLoadingSlug: string | null = null;
     showPalette = $state(false);
     searchQuery = $state("");
     clipboard = $state<Widget | null>(null);
@@ -77,23 +78,40 @@ export class DashboardState {
     }
 
     async load() {
-        try {
-            const db = await ClientDB.init();
-            const config = await db.get("dashboards", this.slug);
-            if (config && config.widgets) {
-                this.widgets = config.widgets;
+        // Guard: Prevent redundant loads for the same slug
+        if (this.isLoading && this.currentLoadingSlug === this.slug) {
+            console.log("[DashboardState] Already loading slug:", this.slug);
+            return;
+        }
 
-                // Migration: Auto-expand full-width widgets from 22 to 24 cols
-                this.widgets.forEach(w => {
-                    if (w.cols === 22 && w.x === 0) {
-                        w.cols = GRID_COLS;
-                    }
-                });
+        // Absolute Safety Timeout: Force stop loading after 5s if stuck
+        const safetyTimeoutId = setTimeout(() => {
+            if (this.isLoading && this.currentLoadingSlug === this.slug) {
+                console.warn(`[DashboardState] Force-clearing loading state for ${this.slug} after 5s safety timeout`);
+                this.isLoading = false;
+                this.hasLoaded = true;
             }
-        } catch (e) {
-            console.error("Failed to load dashboard config", e);
-        } finally {
-            if (this.widgets.length === 0) {
+        }, 5000);
+
+        try {
+            this.isLoading = true;
+            this.currentLoadingSlug = this.slug;
+            this.hasLoaded = false;
+            console.log("[DashboardState] Loading slug:", this.slug);
+
+            this.widgets = [];
+            let hasLoadedConfig = false;
+
+            // ClientDB removed. Dashboard relies on backend APIs.
+            const cachedConfig = browser ? localStorage.getItem(`dashboard_config_${this.slug}`) : null;
+            if (cachedConfig) {
+                this.widgets = JSON.parse(cachedConfig);
+                hasLoadedConfig = true;
+                console.log(`[DashboardState] Loaded ${this.widgets.length} widgets from localStorage`);
+            }
+
+            if (!hasLoadedConfig && this.widgets.length === 0) {
+                console.log("[DashboardState] Initialising default widgets for", this.slug);
                 this.widgets.push({
                     id: "header-1",
                     type: "title",
@@ -104,20 +122,33 @@ export class DashboardState {
                     y: 0,
                 });
             }
+        } catch (e) {
+            console.error("[DashboardState] Critical error in load():", e);
+        } finally {
+            clearTimeout(safetyTimeoutId);
             this.isLoading = false;
+            this.hasLoaded = true;
+            console.log("[DashboardState] Finished loading:", this.slug);
         }
+    }
+
+    createWidget() {
+        this.showPalette = true;
+    }
+
+    closeContextMenu() {
+        this.contextMenu.visible = false;
     }
 
     async save() {
         try {
-            const db = await ClientDB.init();
-            await db.put("dashboards", {
-                id: this.slug,
-                widgets: $state.snapshot(this.widgets),
-                updatedAt: Date.now(),
-            });
+            // Persistence to localStorage as fallback until full backend sync
+            if (browser) {
+                localStorage.setItem(`dashboard_config_${this.slug}`, JSON.stringify($state.snapshot(this.widgets)));
+                console.log("[DashboardState] Config saved to localStorage");
+            }
         } catch (e) {
-            console.error("Failed to save dashboard config", e);
+            console.error("Failed to save dashboard config:", e);
         }
     }
 
@@ -212,6 +243,7 @@ export class DashboardState {
 
     // --- Resizing Logic ---
     startResize(e: MouseEvent, widget: Widget, dir: string = "br") {
+        if (e.button !== 0) return; // Only allow left click
         if (widget.locked) return;
         e.preventDefault();
         e.stopPropagation();
@@ -298,6 +330,7 @@ export class DashboardState {
 
     // --- Dragging Logic ---
     startDrag(e: MouseEvent, widget: Widget) {
+        if (e.button !== 0) return; // Only allow left click
         if (widget.locked) return;
         if (
             e.target instanceof HTMLButtonElement ||
@@ -417,18 +450,22 @@ export class DashboardState {
 
     // --- Context Menu ---
     handleContextMenu(e: MouseEvent, widgetId: string | null = null) {
+        console.log(`[DashboardState] handleContextMenu triggered at (${e.clientX}, ${e.clientY}) for widget: ${widgetId}`);
         this.updateMetrics();
         e.preventDefault();
         e.stopPropagation();
-        this.contextMenu = {
-            visible: true,
-            x: e.clientX,
-            y: e.clientY,
-            widgetId,
-        };
-    }
 
-    closeContextMenu() {
+        // Reset visible first to ensure re-trigger if already open
         this.contextMenu.visible = false;
+
+        setTimeout(() => {
+            this.contextMenu = {
+                visible: true,
+                x: e.clientX,
+                y: e.clientY,
+                widgetId,
+            };
+            console.log("[DashboardState] Context menu set to visible");
+        }, 0);
     }
 }

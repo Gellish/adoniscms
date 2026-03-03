@@ -765,7 +765,9 @@
     }
     .page-body.is-dashboard {
         padding: 0 !important;
-        display: block !important; /* Dashboard handles its own grid */
+        display: flex !important;
+        flex-direction: column;
+        flex: 1;
     }
 
     /* Beautiful Modal Styles - Refined to match screenshot */

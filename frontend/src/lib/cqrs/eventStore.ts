@@ -1,6 +1,5 @@
 import type { Event, EventInput } from '$lib/cqrs/types.js';
 import { uuidv4 } from '$lib/cqrs/uuid.js';
-import { ClientDB } from '$lib/db.js';
 
 export class EventStore {
 
@@ -10,22 +9,19 @@ export class EventStore {
             eventId: uuidv4(),
             timestamp: new Date().toISOString()
         };
-
-        // Save to IndexedDB (Aggregate Stream + Outbox handled in one transaction)
-        await ClientDB.addEvent(event);
-
+        // PolyglotDB removed. Silently skip local event persistence.
         return event;
     }
 
     static async readEvents(aggregateType: string, aggregateId: string): Promise<Event[]> {
-        return ClientDB.getEventsForAggregate(aggregateType, aggregateId);
+        return [];
     }
 
     static async getOutbox(): Promise<Event[]> {
-        return ClientDB.getOutbox();
+        return [];
     }
 
     static async removeFromOutbox(eventIds: string[]) {
-        return ClientDB.removeFromOutbox(eventIds);
+        // No-op
     }
 }

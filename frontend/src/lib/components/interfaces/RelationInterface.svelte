@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { ClientDB } from "$lib/client-db/core";
 
     interface Props {
         value: string;
@@ -19,8 +18,12 @@
 
     onMount(async () => {
         if (relation?.table) {
-            const db = await ClientDB.init();
-            records = await db.getAll(relation.table as any);
+            console.log(
+                "[RelationInterface] Fetching records for",
+                relation.table,
+            );
+            // Fallback to empty for now
+            records = [];
         }
         loading = false;
     });

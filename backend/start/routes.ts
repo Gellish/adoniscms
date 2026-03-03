@@ -41,6 +41,7 @@ router.group(() => {
     // Admin Routes
     router.group(() => {
         router.get('/stats', [StatsController, 'index'])
+        router.get('/tables', [StatsController, 'tables'])
 
         // Menus Resource
         router.get('/menus', [MenusController, 'index'])
@@ -48,6 +49,9 @@ router.group(() => {
         router.put('/menus/:id', [MenusController, 'update'])
         router.delete('/menus/:id', [MenusController, 'destroy'])
         router.post('/menus/reorder', [MenusController, 'reorder'])
+
+        // User Management
+        router.get('/users', [AuthController, 'index'])
 
     }).prefix('admin')
 

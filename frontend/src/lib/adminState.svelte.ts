@@ -1,5 +1,3 @@
-import { dbStart, ClientDB as PolyglotActions } from '$lib/db.js';
-import { ClientDB } from '$lib/client-db/core';
 import { PostService } from '$lib/postService.js';
 import { browser } from '$app/environment';
 
@@ -141,69 +139,13 @@ export const adminState = {
     get lastFetched() { return lastFetched },
     get isSyncing() { return isSyncing },
 
-    /**
-     * Initial fast load for Admin section
-     */
     async loadAllLocal() {
         if (isHydrating) return;
         isHydrating = true;
         try {
-            // Use a Promise.race to ensure IDB doesn't block the app indefinitely
-            const idbRefPromise = dbStart();
-            const clientDBInitPromise = ClientDB.init();
-
-            // 1. Silent Secondary Hydration from PolyglotDB (stats/auth)
-            try {
-                // Timeout after 1s if IDB is stuck
-                const db = await Promise.race([
-                    idbRefPromise,
-                    new Promise((_, reject) => setTimeout(() => reject('timeout'), 1000))
-                ]) as any;
-
-                if (db !== 'timeout') {
-                    const dbStats = await db.get('stats', 'admin_stats');
-                    if (dbStats && !stats) {
-                        stats = dbStats;
-                    }
-                }
-            } catch (e) {
-                console.warn("[AdminState] Polyglot Stats load skipped", e);
-            }
-
             const allPosts = await PostService.getLocalPostsMerged();
             posts = allPosts;
 
-            // 1.5 Hydrate users from PolyglotDB
-            try {
-                const dbRef = await Promise.race([
-                    idbRefPromise,
-                    new Promise((_, reject) => setTimeout(() => reject('timeout'), 1000))
-                ]) as any;
-
-                if (dbRef !== 'timeout') {
-                    const allUsers = await dbRef.getAll('auth');
-                    if (users.length === 0 && allUsers.length > 0) {
-                        users = allUsers;
-                    }
-                }
-            } catch (e) {
-                console.warn("[AdminState] Polyglot Users load skipped", e);
-            }
-
-            // 1.8 Hydrate custom tables from ClientDB
-            try {
-                const clientDB = await Promise.race([
-                    clientDBInitPromise,
-                    new Promise<null>((_, reject) => setTimeout(() => reject('timeout'), 1500))
-                ]) as any;
-
-                if (clientDB) {
-                    const meta = await clientDB.getAll('_meta');
-                    tables = meta || [];
-                }
-            } catch (e) {
-                // ignore
-            }
 
             // 2. Initial Stats from local if none exists in cache
             if (!stats) {
@@ -216,11 +158,6 @@ export const adminState = {
                 // Cache these local-only stats too
                 if (browser) {
                     localStorage.setItem('admin_stats_cache', JSON.stringify(stats));
-                    try {
-                        await PolyglotActions.setStats(stats);
-                    } catch (e) {
-                        // ignore
-                    }
                 }
             }
 
@@ -266,7 +203,6 @@ export const adminState = {
                 if (JSON.stringify(newStats) !== JSON.stringify(stats)) {
                     stats = newStats;
                     localStorage.setItem('admin_stats_cache', JSON.stringify(newStats));
-                    await PolyglotActions.setStats(newStats);
                 }
                 isOffline = false;
             }

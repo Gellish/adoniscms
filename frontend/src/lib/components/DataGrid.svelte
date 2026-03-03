@@ -1,12 +1,9 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { ClientDB } from "$lib/client-db/core";
-    import { SyncEngine } from "$lib/client-db/sync/engine";
-    import type { InterfaceType } from "$lib/types";
+    import { adminState } from "$lib/adminState.svelte";
+    import { type InterfaceType } from "$lib/types";
     import CustomSelect from "$lib/components/CustomSelect.svelte";
     import DynamicForm from "$lib/components/DynamicForm.svelte";
     import { scale, fade } from "svelte/transition";
-    import SchemaDesigner from "./SchemaDesigner.svelte";
 
     let { tableName, readOnly = false } = $props<{
         tableName: string;
@@ -43,13 +40,17 @@
         error = null;
         try {
             console.log(`[DataGrid] Loading data for: ${tableName}`);
-            const db = await ClientDB.init();
-            records = await db.getAll(tableName as any);
-            console.log(`[DataGrid] Found ${records.length} records.`);
-
-            // Load manual schema if it exists
-            const stored = await ClientDB.getSchema(tableName);
-            manualSchema = stored ? stored.schema : null;
+            // System entities are managed in adminState
+            if (tableName === "posts") {
+                records = adminState.posts;
+            } else if (tableName === "users") {
+                records = adminState.users;
+            } else {
+                console.warn(
+                    `[DataGrid] Table "${tableName}" requested. Backend sync pending.`,
+                );
+                records = [];
+            }
 
             if (records.length > 0) {
                 columns = Object.keys(records[0]).filter((k) => k !== "id");
@@ -61,7 +62,7 @@
                 `[DataGrid] Failed to load data for ${tableName}:`,
                 e,
             );
-            error = e.message || "Unknown database error";
+            error = "Failed to load records from backend";
         } finally {
             loading = false;
         }
@@ -70,23 +71,8 @@
     async function handleDelete(id: string) {
         if (!confirm("Are you sure you want to delete this record?")) return;
         try {
-            const db = await ClientDB.init();
-            const tx = db.transaction(tableName as any, "readwrite");
-            await tx.store.delete(id);
-            await tx.done;
-
-            // Log for sync
-            await SyncEngine.logOperation({
-                table: tableName,
-                action: "delete",
-                payload: { id },
-            });
-
-            import("$lib/adminState.svelte").then(({ adminState }) => {
-                adminState.showToast("Record deleted successfully", "success");
-            });
-
-            await loadData();
+            console.log("[DataGrid] Delete requested for", tableName, id);
+            adminState.showToast("Delete moved to backend (Pending)", "info");
         } catch (e) {
             console.error("Delete failed", e);
         }
@@ -168,106 +154,27 @@
 
     async function saveEdit(id: string) {
         try {
-            const db = await ClientDB.init();
-            const tx = db.transaction(tableName as any, "readwrite");
-            await tx.store.put($state.snapshot(editBuffer));
-            await tx.done;
-
-            // Log for sync
-            await SyncEngine.logOperation({
-                table: tableName,
-                action: "update",
-                payload: $state.snapshot(editBuffer),
-            });
-
-            import("$lib/adminState.svelte").then(({ adminState }) => {
-                adminState.showToast("Record updated successfully", "success");
-            });
-
+            console.log("[DataGrid] Save requested for", tableName, editBuffer);
+            adminState.showToast("Save moved to backend (Pending)", "info");
             editingId = null;
             editBuffer = {};
-            await loadData();
         } catch (e) {
             console.error("Save failed", e);
         }
     }
 
     async function handleSeedSystem() {
-        try {
-            const db = await ClientDB.init();
-            await ClientDB.seedSystemData(db);
-            await loadData();
-        } catch (e) {
-            console.error("[DataGrid] Manual seed failed:", e);
-            alert("Failed to seed system record. Check console for details.");
-        }
+        adminState.showToast("System seeding moved to backend", "info");
     }
 
     async function handleSeedDemo() {
-        try {
-            const db = await ClientDB.init();
-            const demoRecord = {
-                id: crypto.randomUUID(),
-                title: "Welcome to your Data-Driven CMS! 🚀",
-                content:
-                    "This is a rich text field. You can **format** your content easily.\n\n- Phase 1: Smart Editing\n- Phase 2: Interface Designer\n- Phase 3: Relational UI",
-                status: true,
-                author: "Admin",
-                createdAt: Date.now(),
-            };
-
-            const tx = db.transaction(tableName as any, "readwrite");
-            await tx.store.add(demoRecord);
-            await tx.done;
-
-            // Log for sync
-            await SyncEngine.logOperation({
-                table: tableName,
-                action: "create",
-                payload: demoRecord,
-            });
-
-            import("$lib/adminState.svelte").then(({ adminState }) => {
-                adminState.showToast(
-                    "Demo record seeded! Check the Smart Editor now.",
-                    "success",
-                );
-            });
-
-            await loadData();
-        } catch (e) {
-            console.error("Demo seed failed", e);
-        }
+        console.log("[DataGrid] Demo seed requested");
+        adminState.showToast("Demo seeding moved to backend", "info");
     }
 
     async function handleAdd() {
-        try {
-            const db = await ClientDB.init();
-            const newRecord: any = {
-                id: crypto.randomUUID(),
-                createdAt: Date.now(),
-            };
-            columns.forEach((col) => (newRecord[col] = ""));
-
-            const tx = db.transaction(tableName as any, "readwrite");
-            await tx.store.add(newRecord);
-            await tx.done;
-
-            // Log for sync
-            await SyncEngine.logOperation({
-                table: tableName,
-                action: "create",
-                payload: newRecord,
-            });
-
-            import("$lib/adminState.svelte").then(({ adminState }) => {
-                adminState.showToast("Record added successfully", "success");
-            });
-
-            await loadData();
-        } catch (e) {
-            console.error("Add failed", e);
-        }
+        console.log("[DataGrid] Add requested for", tableName);
+        adminState.showToast("Creation moved to backend (Pending)", "info");
     }
 </script>
 
@@ -583,26 +490,6 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <button
-                            onclick={() => (showSchemaDesigner = true)}
-                            class="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                            title="Configure Fields"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.5"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                ><path
-                                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
-                                /><circle cx="12" cy="12" r="3" /></svg
-                            >
-                        </button>
-                        <button
                             onclick={cancelEdit}
                             class="p-2 hover:bg-white rounded-full transition-colors"
                             aria-label="Close"
@@ -701,39 +588,6 @@
                         Save Changes
                     </button>
                 </div>
-            </div>
-        </div>
-    {/if}
-
-    {#if showSchemaDesigner}
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-            class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[10001] flex items-center justify-center p-12"
-            onclick={() => (showSchemaDesigner = false)}
-            onkeydown={(e) =>
-                (e.key === "Escape" || e.key === "Enter" || e.key === " ") &&
-                (showSchemaDesigner = false)}
-            role="dialog"
-            aria-modal="true"
-            tabindex="-1"
-            transition:fade
-        >
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div
-                class="w-full max-w-4xl"
-                onclick={(e) => e.stopPropagation()}
-                role="presentation"
-                transition:scale={{ start: 0.9, duration: 300 }}
-            >
-                <SchemaDesigner
-                    {tableName}
-                    {columns}
-                    onSave={() => {
-                        showSchemaDesigner = false;
-                        loadData();
-                    }}
-                />
             </div>
         </div>
     {/if}
