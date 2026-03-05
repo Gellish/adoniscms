@@ -54,6 +54,7 @@
     "@adonisjs/core": "^7.0.1",
     "@adonisjs/cors": "^3.0.0",
     "@adonisjs/lucid": "^22.0.0",
+    "@vinejs/vine": "^4.3.0",
     "better-sqlite3": "^12.6.2",
     "js-yaml": "^4.1.1",
     "luxon": "^3.7.2",

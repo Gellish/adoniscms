@@ -1,10 +1,9 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import type { Menu } from "$lib/types";
-    import { ClientDB } from "$lib/client-db/core";
+    import { adminState } from "$lib/adminState.svelte";
     import MenuBuilder from "$lib/components/MenuBuilder.svelte";
 
-    let menus = $state<Menu[]>([]);
     let isLoading = $state(true);
 
     const DEFAULT_MENUS: Menu[] = [
@@ -45,17 +44,10 @@
     });
 
     async function loadMenus() {
-        // We now rely on adminState mostly, but can refresh here if needed
         try {
-            const db = await ClientDB.init();
-            const stored = await db.getAll("menus");
-            if (stored && stored.length > 0) {
-                menus = stored;
-            } else {
-                menus = DEFAULT_MENUS;
-            }
+            await adminState.refreshFromAPI();
         } catch (e) {
-            menus = DEFAULT_MENUS;
+            console.error("Load failed", e);
         } finally {
             isLoading = false;
         }
@@ -63,40 +55,39 @@
 
     let activeMenuId = $state("");
     $effect(() => {
-        if (!activeMenuId && menus.length > 0) {
-            activeMenuId = menus[0].id;
+        if (!activeMenuId && adminState.menus.length > 0) {
+            activeMenuId = adminState.menus[0].id;
         }
     });
 
     let activeMenuIndex = $derived(
-        menus.findIndex((m) => m.id === activeMenuId),
+        adminState.menus.findIndex((m) => m.id === activeMenuId),
     );
-    let activeMenu = $derived(menus[activeMenuIndex] || menus[0]);
+    let activeMenu = $derived(adminState.menus[activeMenuIndex]);
 
     async function saveMenus() {
+        if (!activeMenu) return;
         try {
-            const db = await ClientDB.init();
-            const tx = db.transaction("menus", "readwrite");
-            for (const menu of menus) {
-                await tx.store.put($state.snapshot(menu));
-            }
-            await tx.done;
-            alert("Navigation updated!");
+            await adminState.updateMenu(
+                activeMenu.id,
+                activeMenu.name,
+                $state.snapshot(activeMenu.items),
+            );
+            adminState.showToast("Navigation updated!", "success");
         } catch (e) {
             console.error("Save failed", e);
+            adminState.showToast("Failed to save changes", "error");
         }
     }
 
     async function createNewMenu() {
         const name = prompt("Enter menu name:");
         if (!name) return;
-        const newMenu: Menu = {
-            id: crypto.randomUUID(),
-            name,
-            items: [],
-        };
-        menus.push(newMenu);
-        activeMenuId = newMenu.id;
+
+        const created = await adminState.createMenu(name);
+        if (created) {
+            activeMenuId = created.id;
+        }
     }
 </script>
 
@@ -138,7 +129,7 @@
             >
                 Your Menus
             </h3>
-            {#each menus as menu}
+            {#each adminState.menus as menu}
                 <button
                     onclick={() => (activeMenuId = menu.id)}
                     class="w-full text-left px-4 py-3 rounded-xl transition-all font-medium flex items-center justify-between group"
@@ -174,14 +165,16 @@
                         </h2>
                         <input
                             type="text"
-                            bind:value={menus[activeMenuIndex].name}
+                            bind:value={adminState.menus[activeMenuIndex].name}
                             class="text-sm px-3 py-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                         />
                     </div>
 
                     <div class="col-span-24 p-6 space-y-8">
                         {#key activeMenuId}
-                            <MenuBuilder bind:menu={menus[activeMenuIndex]} />
+                            <MenuBuilder
+                                bind:menu={adminState.menus[activeMenuIndex]}
+                            />
                         {/key}
                         <div class="mt-8 flex justify-end">
                             <button
